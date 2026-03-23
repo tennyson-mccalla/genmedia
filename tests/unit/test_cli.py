@@ -189,3 +189,79 @@ class TestVideoCommand:
         parsed = json.loads(result.output)
         assert parsed["status"] == "success"
         assert parsed["files"][0]["mime_type"] == "video/mp4"
+
+
+class TestAdditionalCoverage:
+    def test_explicit_output_path(self, runner, mock_env, tmp_path):
+        """Test --output flag writes to exact path."""
+        with patch("genmedia.cli.image.genai") as mock_genai:
+            mock_part = MagicMock()
+            mock_part.inline_data = MagicMock()
+            mock_part.inline_data.data = b"fake-png"
+            mock_part.inline_data.mime_type = "image/png"
+            mock_part.text = None
+
+            mock_response = MagicMock()
+            mock_response.prompt_feedback = None
+            mock_response.candidates = [MagicMock()]
+            mock_response.candidates[0].finish_reason = "STOP"
+            mock_response.candidates[0].content.parts = [mock_part]
+
+            mock_genai.Client.return_value.models.generate_content.return_value = mock_response
+
+            out_path = str(tmp_path / "exact.png")
+            result = runner.invoke(cli, ["image", "a cat", "--output", out_path])
+            assert result.exit_code == 0
+            parsed = json.loads(result.output)
+            assert parsed["files"][0]["path"] == out_path
+            assert os.path.isfile(out_path)
+
+    def test_count_multiple_files(self, runner, mock_env, tmp_path):
+        """Test --count 3 produces 3 files."""
+        with patch("genmedia.cli.image.genai") as mock_genai:
+            mock_part = MagicMock()
+            mock_part.inline_data = MagicMock()
+            mock_part.inline_data.data = b"fake-png"
+            mock_part.inline_data.mime_type = "image/png"
+            mock_part.text = None
+
+            mock_response = MagicMock()
+            mock_response.prompt_feedback = None
+            mock_response.candidates = [MagicMock()]
+            mock_response.candidates[0].finish_reason = "STOP"
+            mock_response.candidates[0].content.parts = [mock_part]
+
+            mock_genai.Client.return_value.models.generate_content.return_value = mock_response
+
+            result = runner.invoke(cli, [
+                "image", "a cat", "--count", "3", "--output-dir", str(tmp_path),
+            ])
+            assert result.exit_code == 0
+            parsed = json.loads(result.output)
+            assert len(parsed["files"]) == 3
+            for f in parsed["files"]:
+                assert os.path.isfile(f["path"])
+
+    def test_format_jpg(self, runner, mock_env, tmp_path):
+        """Test --format jpg produces .jpg extension."""
+        with patch("genmedia.cli.image.genai") as mock_genai:
+            mock_part = MagicMock()
+            mock_part.inline_data = MagicMock()
+            mock_part.inline_data.data = b"fake-jpg"
+            mock_part.inline_data.mime_type = "image/jpeg"
+            mock_part.text = None
+
+            mock_response = MagicMock()
+            mock_response.prompt_feedback = None
+            mock_response.candidates = [MagicMock()]
+            mock_response.candidates[0].finish_reason = "STOP"
+            mock_response.candidates[0].content.parts = [mock_part]
+
+            mock_genai.Client.return_value.models.generate_content.return_value = mock_response
+
+            result = runner.invoke(cli, [
+                "image", "a cat", "--format", "jpg", "--output-dir", str(tmp_path),
+            ])
+            assert result.exit_code == 0
+            parsed = json.loads(result.output)
+            assert parsed["files"][0]["path"].endswith(".jpg")

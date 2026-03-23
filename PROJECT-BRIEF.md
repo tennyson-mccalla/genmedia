@@ -184,10 +184,10 @@ for video in operation.result.generated_videos:
 
 | Parameter | Values | Notes |
 |-----------|--------|-------|
-| `aspect_ratio` | `1:1`, `3:4`, `4:3`, `9:16`, `16:9` | Shared across image and video |
-| `image_size` | `4K` (possibly others) | Image only. `4K` + `16:9` = 5504x3072 |
-| `response_modalities` | `["IMAGE"]` | Required for Gemini native image gen |
-| `duration_seconds` | `5`–`8` | Video only |
+| `aspect_ratio` | `1:1`, `1:4`, `1:8`, `2:3`, `3:2`, `3:4`, `4:1`, `4:3`, `4:5`, `5:4`, `8:1`, `9:16`, `16:9`, `21:9` | Image/edit support all; video only `16:9`, `9:16` |
+| `image_size` | `512`, `1K`, `2K`, `4K` | Image only (Gemini, not Imagen). Case-insensitive. |
+| `response_modalities` | `["IMAGE"]` or `["TEXT", "IMAGE"]` | `IMAGE` for gen, `TEXT, IMAGE` for edit |
+| `duration_seconds` | `4`, `6`, `8` | Video only |
 
 ## Environment
 

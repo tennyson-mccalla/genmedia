@@ -1098,11 +1098,14 @@ def write_media_files(
         with open(path, "wb") as f:
             f.write(result.data)
 
-        written.append({
+        entry = {
             "path": os.path.abspath(path),
             "mime_type": result.mime_type,
             "size_bytes": len(result.data),
-        })
+        }
+        if result.metadata:
+            entry.update(result.metadata)
+        written.append(entry)
 
     return written
 ```
@@ -1669,7 +1672,7 @@ class VeoBackend(Backend):
                 MediaResult(
                     data=video_bytes,
                     mime_type="video/mp4",
-                    metadata={},
+                    metadata={"duration_seconds": config.duration_seconds},
                 )
             )
 
@@ -2881,10 +2884,24 @@ def format_pretty_error(*, error: str, message: str) -> str:
     return f"Error [{error}]: {message}"
 ```
 
-- [ ] **Step 4: Wire pretty flag in image subcommand**
+- [ ] **Step 4: Wire pretty flag in all subcommands**
 
-In `src/genmedia/cli/image.py`, after the success path where `format_success` is called, add:
+In each subcommand (`image.py`, `edit.py`, `video.py`), update the `_exit_error` function and success output path:
 
+**Update `_exit_error` to accept `pretty` parameter:**
+```python
+def _exit_error(error: str, message: str, exit_code: int = 1, pretty: bool = False, **extra):
+    if pretty:
+        from genmedia.output import format_pretty_error
+        click.echo(format_pretty_error(error=error, message=message), err=True)
+    else:
+        click.echo(format_error(error=error, message=message, **extra), err=True)
+    sys.exit(exit_code)
+```
+
+Pass `pretty=pretty` to all `_exit_error` calls.
+
+**Success path (image.py example, same pattern for edit.py and video.py):**
 ```python
     if pretty:
         from genmedia.output import format_pretty_success
@@ -2902,16 +2919,44 @@ In `src/genmedia/cli/image.py`, after the success path where `format_success` is
         ))
 ```
 
-Apply the same pattern to `edit.py` and `video.py`.
+**`--list-models` pretty path (image.py and video.py):**
+```python
+    if list_models:
+        if pretty:
+            from genmedia.output import format_pretty_list_models
+            click.echo(format_pretty_list_models(IMAGE_MODELS))
+        else:
+            click.echo(format_list_models(IMAGE_MODELS))
+        sys.exit(0)
+```
 
-- [ ] **Step 5: Run tests**
+- [ ] **Step 5: Add `format_pretty_list_models` to output.py**
+
+Append to `src/genmedia/output.py`:
+```python
+def format_pretty_list_models(models: list[dict]) -> str:
+    lines = []
+    for m in models:
+        default = " (default)" if m.get("default") else ""
+        lines.append(f"  {m['id']}{default}  {m.get('notes', '')}")
+    return "\n".join(lines)
+```
+
+- [ ] **Step 6: `--verbose` — document as reserved, no implementation**
+
+The `--verbose` flag is accepted but has no effect in v1. Update the help text in all subcommands to:
+```python
+@click.option("--verbose", "-v", is_flag=True, help="Extra metadata in output (reserved for future use)")
+```
+
+- [ ] **Step 7: Run tests**
 
 Run: `pytest tests/unit/ -v`
 Expected: All PASS
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add src/genmedia/output.py src/genmedia/cli/ tests/unit/test_pretty.py
-git commit -m "feat: add basic --pretty mode for human-friendly output"
+git commit -m "feat: add --pretty mode for success, errors, and --list-models"
 ```

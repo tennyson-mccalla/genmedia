@@ -99,3 +99,56 @@ class TestGeminiImageBackend:
         config = MediaConfig(prompt="a cat", model="gemini-3.1-flash-image-preview", image_size="4k")
         req = self.backend.build_request(config)
         assert req["config"]["image_config"]["image_size"] == "4K"
+
+
+from genmedia.backends.imagen import ImagenBackend
+
+
+class TestImagenBackend:
+    def setup_method(self):
+        self.client = MagicMock()
+        self.backend = ImagenBackend(client=self.client)
+
+    def test_build_request_basic(self):
+        config = MediaConfig(prompt="a lake", model="imagen-4.0-generate-001")
+        req = self.backend.build_request(config)
+        assert req["model"] == "imagen-4.0-generate-001"
+        assert req["config"]["number_of_images"] == 1
+
+    def test_build_request_with_count(self):
+        config = MediaConfig(prompt="a lake", model="imagen-4.0-generate-001", count=3)
+        req = self.backend.build_request(config)
+        assert req["config"]["number_of_images"] == 3
+
+    def test_build_request_with_aspect(self):
+        config = MediaConfig(prompt="a lake", model="imagen-4.0-generate-001", aspect_ratio="16:9")
+        req = self.backend.build_request(config)
+        assert req["config"]["aspect_ratio"] == "16:9"
+
+    def test_generate_success(self):
+        mock_image = MagicMock()
+        mock_image.image.image_bytes = b"imagen-bytes"
+
+        mock_response = MagicMock()
+        mock_response.generated_images = [mock_image]
+
+        self.client.models.generate_images.return_value = mock_response
+
+        config = MediaConfig(prompt="a lake", model="imagen-4.0-generate-001")
+        results = self.backend.generate(config)
+        assert len(results) == 1
+        assert results[0].data == b"imagen-bytes"
+
+    def test_generate_uses_native_count(self):
+        mock_image = MagicMock()
+        mock_image.image.image_bytes = b"imagen-bytes"
+
+        mock_response = MagicMock()
+        mock_response.generated_images = [mock_image, mock_image]
+
+        self.client.models.generate_images.return_value = mock_response
+
+        config = MediaConfig(prompt="a lake", model="imagen-4.0-generate-001", count=2)
+        results = self.backend.generate(config)
+        assert len(results) == 2
+        assert self.client.models.generate_images.call_count == 1

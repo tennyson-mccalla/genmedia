@@ -90,3 +90,54 @@ class TestImageCommand:
         assert parsed["status"] == "success"
         assert len(parsed["files"]) == 1
         assert os.path.isfile(parsed["files"][0]["path"])
+
+
+class TestEditCommand:
+    def test_dry_run_edit(self, runner, mock_env, tmp_path):
+        # Create a fake input image
+        img_path = tmp_path / "input.png"
+        img_path.write_bytes(b"fake-png-data")
+
+        result = runner.invoke(cli, ["edit", str(img_path), "remove background", "--dry-run"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["status"] == "dry_run"
+        assert parsed["backend"] == "GeminiImageBackend"
+        assert parsed["config"]["response_modalities"] == ["TEXT", "IMAGE"]
+
+    def test_edit_missing_input_file(self, runner, mock_env):
+        result = runner.invoke(cli, ["edit", "/nonexistent.png", "remove bg"])
+        assert result.exit_code == 2
+
+    def test_edit_missing_prompt(self, runner, mock_env, tmp_path):
+        img_path = tmp_path / "input.png"
+        img_path.write_bytes(b"fake-png")
+        result = runner.invoke(cli, ["edit", str(img_path)])
+        assert result.exit_code != 0
+
+    @patch("genmedia.cli.edit.genai")
+    def test_edit_success(self, mock_genai, runner, mock_env, tmp_path):
+        img_path = tmp_path / "input.png"
+        img_path.write_bytes(b"fake-input")
+
+        mock_part = MagicMock()
+        mock_part.inline_data = MagicMock()
+        mock_part.inline_data.data = b"edited-png"
+        mock_part.inline_data.mime_type = "image/png"
+        mock_part.text = None
+
+        mock_response = MagicMock()
+        mock_response.prompt_feedback = None
+        mock_response.candidates = [MagicMock()]
+        mock_response.candidates[0].finish_reason = "STOP"
+        mock_response.candidates[0].content.parts = [mock_part]
+
+        mock_genai.Client.return_value.models.generate_content.return_value = mock_response
+
+        result = runner.invoke(cli, [
+            "edit", str(img_path), "remove background",
+            "--output-dir", str(tmp_path),
+        ])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["status"] == "success"

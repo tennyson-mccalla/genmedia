@@ -4,8 +4,23 @@ import os
 from genmedia.backends.base import MediaResult
 
 FORMAT_TO_EXT = {"png": ".png", "jpg": ".jpg", "webp": ".webp", "mp4": ".mp4"}
-EXT_TO_MIME = {".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".mp4": "video/mp4"}
+MIME_TO_EXT = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "video/mp4": ".mp4"}
 DEFAULT_OUTPUT_DIR = "/tmp/genmedia"
+
+
+def detect_mime_type(data: bytes) -> str | None:
+    """Detect MIME type from file magic bytes. Returns None if unknown."""
+    if len(data) < 12:
+        return None
+    if data[:2] == b"\xff\xd8":
+        return "image/jpeg"
+    if data[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[4:8] == b"ftyp":
+        return "video/mp4"
+    return None
 
 
 def format_success(*, files: list[dict], model: str, elapsed_seconds: float, request: dict) -> str:
@@ -67,17 +82,20 @@ def format_pretty_list_models(models: list[dict]) -> str:
 
 
 def write_media_files(*, results: list[MediaResult], output: str | None, output_dir: str | None, output_format: str) -> list[dict]:
-    ext = FORMAT_TO_EXT.get(output_format, f".{output_format}")
+    fallback_ext = FORMAT_TO_EXT.get(output_format, f".{output_format}")
     written: list[dict] = []
     for i, result in enumerate(results):
+        actual_mime = detect_mime_type(result.data) or result.mime_type
+        actual_ext = MIME_TO_EXT.get(actual_mime, fallback_ext)
+
         if output and len(results) == 1:
             path = output
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         else:
-            path = auto_name(output_dir=output_dir, extension=ext)
+            path = auto_name(output_dir=output_dir, extension=actual_ext)
         with open(path, "wb") as f:
             f.write(result.data)
-        entry = {"path": os.path.abspath(path), "mime_type": result.mime_type, "size_bytes": len(result.data)}
+        entry = {"path": os.path.abspath(path), "mime_type": actual_mime, "size_bytes": len(result.data)}
         if result.metadata:
             entry.update(result.metadata)
         written.append(entry)

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "genmedia"
+version = "0.1.0"
+description = "Multimodal media generation CLI for Google GenAI"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0.0",
+    "click>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.0",
+]
+
+[project.scripts]
+genmedia = "genmedia.cli.main:cli"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

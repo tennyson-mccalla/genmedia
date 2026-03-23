@@ -141,3 +141,51 @@ class TestEditCommand:
         assert result.exit_code == 0
         parsed = json.loads(result.output)
         assert parsed["status"] == "success"
+
+
+class TestVideoCommand:
+    def test_dry_run_video(self, runner, mock_env):
+        result = runner.invoke(cli, ["video", "a sunset", "--dry-run"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["status"] == "dry_run"
+        assert parsed["backend"] == "VeoBackend"
+        assert parsed["model"] == "veo-3.0-generate-001"
+
+    def test_dry_run_with_duration(self, runner, mock_env):
+        result = runner.invoke(cli, ["video", "a sunset", "--duration", "8", "--dry-run"])
+        parsed = json.loads(result.output)
+        assert parsed["config"]["duration_seconds"] == 8
+
+    def test_invalid_duration(self, runner, mock_env):
+        result = runner.invoke(cli, ["video", "a sunset", "--duration", "5"])
+        assert result.exit_code == 2
+        err = json.loads(result.stderr)
+        assert err["error"] == "validation_error"
+
+    def test_list_video_models(self, runner):
+        result = runner.invoke(cli, ["video", "--list-models"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert any(m["id"].startswith("veo") for m in parsed["models"])
+
+    @patch("genmedia.cli.video.genai")
+    def test_video_success(self, mock_genai, runner, mock_env, tmp_path):
+        mock_video = MagicMock()
+        mock_video.video = MagicMock()
+
+        mock_operation = MagicMock()
+        mock_operation.done = True
+        mock_operation.result.generated_videos = [mock_video]
+
+        mock_genai.Client.return_value.models.generate_videos.return_value = mock_operation
+        mock_genai.Client.return_value.files.download.return_value = b"fake-video"
+
+        result = runner.invoke(cli, [
+            "video", "a sunset",
+            "--output-dir", str(tmp_path),
+        ])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["status"] == "success"
+        assert parsed["files"][0]["mime_type"] == "video/mp4"

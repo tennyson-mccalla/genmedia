@@ -2,7 +2,7 @@ import time
 
 from google.genai import types
 
-from genmedia.backends.base import Backend, MediaConfig, MediaResult
+from genmedia.backends.base import Backend, ContentBlockedError, MediaConfig, MediaResult
 from genmedia.retry import classify_sdk_error
 
 
@@ -34,6 +34,15 @@ class VeoBackend(Backend):
             raise classify_sdk_error(exc) from exc
 
         operation = self._poll_operation(operation)
+
+        if not operation.result or not operation.result.generated_videos:
+            reason = None
+            if operation.result:
+                reason = getattr(operation.result, "rai_media_filtered_reasons", None)
+            raise ContentBlockedError(
+                f"Video generation produced no output{f': {reason}' if reason else ''}",
+                block_reason=str(reason) if reason else "UNKNOWN",
+            )
 
         results = []
         for video in operation.result.generated_videos:

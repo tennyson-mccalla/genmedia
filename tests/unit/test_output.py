@@ -5,6 +5,7 @@ import tempfile
 from genmedia.output import (
     format_success, format_error, format_dry_run,
     format_list_models, auto_name, write_media_files,
+    detect_mime_type,
 )
 
 
@@ -102,3 +103,69 @@ def test_write_media_files():
         assert len(written) == 1
         assert os.path.isfile(written[0]["path"])
         assert written[0]["size_bytes"] == len(b"fake-png-data")
+
+
+# --- MIME type detection from bytes ---
+
+# Real magic bytes for each format
+JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"\x00" * 100
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+WEBP_BYTES = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 100
+MP4_BYTES = b"\x00\x00\x00\x1cftyp" + b"\x00" * 100
+
+
+def test_detect_jpeg():
+    assert detect_mime_type(JPEG_BYTES) == "image/jpeg"
+
+
+def test_detect_png():
+    assert detect_mime_type(PNG_BYTES) == "image/png"
+
+
+def test_detect_webp():
+    assert detect_mime_type(WEBP_BYTES) == "image/webp"
+
+
+def test_detect_mp4():
+    assert detect_mime_type(MP4_BYTES) == "video/mp4"
+
+
+def test_detect_unknown_returns_none():
+    assert detect_mime_type(b"random garbage data") is None
+
+
+def test_detect_empty_returns_none():
+    assert detect_mime_type(b"") is None
+
+
+def test_write_media_files_corrects_extension_for_jpeg():
+    """When API returns JPEG bytes but user asked for png, file gets .jpg extension."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        from genmedia.backends.base import MediaResult
+        results = [MediaResult(data=JPEG_BYTES, mime_type="image/png", metadata={})]
+        written = write_media_files(results=results, output=None, output_dir=tmpdir, output_format="png")
+        assert written[0]["path"].endswith(".jpg")
+        assert written[0]["mime_type"] == "image/jpeg"
+
+
+def test_write_media_files_corrects_mime_type():
+    """The reported mime_type should match actual bytes, not what the API claimed."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        from genmedia.backends.base import MediaResult
+        results = [MediaResult(data=PNG_BYTES, mime_type="image/jpeg", metadata={})]
+        written = write_media_files(results=results, output=None, output_dir=tmpdir, output_format="jpg")
+        assert written[0]["path"].endswith(".png")
+        assert written[0]["mime_type"] == "image/png"
+
+
+def test_write_media_files_explicit_output_keeps_path():
+    """When user provides --output, the path is honored but mime_type is still corrected."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        from genmedia.backends.base import MediaResult
+        explicit_path = os.path.join(tmpdir, "my_image.png")
+        results = [MediaResult(data=JPEG_BYTES, mime_type="image/png", metadata={})]
+        written = write_media_files(results=results, output=explicit_path, output_dir=None, output_format="png")
+        # Path is what user asked for — we don't rename explicit paths
+        assert written[0]["path"].endswith("my_image.png")
+        # But mime_type is corrected
+        assert written[0]["mime_type"] == "image/jpeg"

@@ -228,3 +228,28 @@ class TestVeoBackend:
         with patch("genmedia.backends.veo.time.sleep"):
             with pytest.raises(KeyboardInterrupt):
                 self.backend.generate(config)
+
+    def test_generate_no_videos_raises_content_blocked(self):
+        mock_operation = MagicMock()
+        mock_operation.done = True
+        mock_operation.result.generated_videos = None
+        mock_operation.result.rai_media_filtered_reasons = None
+
+        self.client.models.generate_videos.return_value = mock_operation
+
+        config = MediaConfig(prompt="bad prompt", model="veo-3.0-generate-001")
+        with pytest.raises(ContentBlockedError):
+            self.backend.generate(config)
+
+    def test_generate_empty_videos_list_raises_content_blocked(self):
+        mock_operation = MagicMock()
+        mock_operation.done = True
+        mock_operation.result.generated_videos = []
+        mock_operation.result.rai_media_filtered_reasons = ["SAFETY"]
+
+        self.client.models.generate_videos.return_value = mock_operation
+
+        config = MediaConfig(prompt="bad prompt", model="veo-3.0-generate-001")
+        with pytest.raises(ContentBlockedError) as exc_info:
+            self.backend.generate(config)
+        assert "SAFETY" in str(exc_info.value)

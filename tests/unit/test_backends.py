@@ -152,3 +152,79 @@ class TestImagenBackend:
         results = self.backend.generate(config)
         assert len(results) == 2
         assert self.client.models.generate_images.call_count == 1
+
+
+from genmedia.backends.veo import VeoBackend
+
+
+class TestVeoBackend:
+    def setup_method(self):
+        self.client = MagicMock()
+        self.backend = VeoBackend(client=self.client)
+
+    def test_build_request_basic(self):
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001")
+        req = self.backend.build_request(config)
+        assert req["model"] == "veo-3.0-generate-001"
+        assert req["config"]["number_of_videos"] == 1
+
+    def test_build_request_with_duration(self):
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001", duration_seconds=8)
+        req = self.backend.build_request(config)
+        assert req["config"]["duration_seconds"] == 8
+
+    def test_build_request_with_aspect(self):
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001", aspect_ratio="9:16")
+        req = self.backend.build_request(config)
+        assert req["config"]["aspect_ratio"] == "9:16"
+
+    def test_generate_success(self):
+        mock_video = MagicMock()
+        mock_video.video = MagicMock()
+
+        mock_operation = MagicMock()
+        mock_operation.done = True
+        mock_operation.result.generated_videos = [mock_video]
+
+        self.client.models.generate_videos.return_value = mock_operation
+        self.client.files.download.return_value = b"video-bytes"
+
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001")
+        results = self.backend.generate(config)
+        assert len(results) == 1
+        assert results[0].data == b"video-bytes"
+        assert results[0].mime_type == "video/mp4"
+
+    def test_generate_polls_until_done(self):
+        mock_video = MagicMock()
+        mock_video.video = MagicMock()
+
+        pending_op = MagicMock()
+        pending_op.done = False
+
+        done_op = MagicMock()
+        done_op.done = True
+        done_op.result.generated_videos = [mock_video]
+
+        self.client.models.generate_videos.return_value = pending_op
+        self.client.operations.get.return_value = done_op
+        self.client.files.download.return_value = b"video-bytes"
+
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001")
+        with patch("genmedia.backends.veo.time.sleep"):
+            results = self.backend.generate(config)
+
+        assert len(results) == 1
+        self.client.operations.get.assert_called_once()
+
+    def test_generate_keyboard_interrupt(self):
+        pending_op = MagicMock()
+        pending_op.done = False
+
+        self.client.models.generate_videos.return_value = pending_op
+        self.client.operations.get.side_effect = KeyboardInterrupt()
+
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001")
+        with patch("genmedia.backends.veo.time.sleep"):
+            with pytest.raises(KeyboardInterrupt):
+                self.backend.generate(config)

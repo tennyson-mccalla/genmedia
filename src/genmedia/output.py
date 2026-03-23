@@ -40,6 +40,32 @@ def auto_name(*, output_dir: str | None = None, extension: str) -> str:
         counter += 1
 
 
+def format_pretty_success(
+    *,
+    files: list[dict],
+    model: str,
+    elapsed_seconds: float,
+) -> str:
+    lines = []
+    for f in files:
+        size_kb = f["size_bytes"] / 1024
+        lines.append(f"Saved to {f['path']} ({size_kb:.1f} KB)")
+    lines.append(f"Model: {model} | Time: {elapsed_seconds:.1f}s")
+    return "\n".join(lines)
+
+
+def format_pretty_error(*, error: str, message: str) -> str:
+    return f"Error [{error}]: {message}"
+
+
+def format_pretty_list_models(models: list[dict]) -> str:
+    lines = []
+    for m in models:
+        default = " (default)" if m.get("default") else ""
+        lines.append(f"  {m['id']}{default}  {m.get('notes', '')}")
+    return "\n".join(lines)
+
+
 def write_media_files(*, results: list[MediaResult], output: str | None, output_dir: str | None, output_format: str) -> list[dict]:
     ext = FORMAT_TO_EXT.get(output_format, f".{output_format}")
     written: list[dict] = []

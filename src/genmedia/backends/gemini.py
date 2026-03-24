@@ -61,7 +61,11 @@ class GeminiImageBackend(Backend):
 
             self._check_safety(response)
 
-            for part in response.candidates[0].content.parts:
+            if not response.candidates:
+                raise ContentBlockedError("No candidates in response", block_reason="UNKNOWN")
+
+            parts = getattr(response.candidates[0].content, "parts", None) or []
+            for part in parts:
                 if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
                     results.append(
                         MediaResult(
@@ -71,6 +75,11 @@ class GeminiImageBackend(Backend):
                         )
                     )
 
+        if not results:
+            raise ContentBlockedError(
+                "Generation produced no image output",
+                block_reason="UNKNOWN",
+            )
         return results
 
     def _check_safety(self, response) -> None:

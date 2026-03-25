@@ -11,7 +11,7 @@ Multimodal media generation CLI for Google GenAI. Images, video, and image editi
 | ![crystal cat](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_006.jpg) | ![blue triangle](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_004.jpg) | |
 | `genmedia image "a slightly glowing crystalline cat in the morning light in a forest, sharp, magical realism"` | `genmedia edit red_triangle.jpg "change to blue, yellow gradient background"` | |
 
-[Video: crystal cat animated with genmedia video](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_004.mp4)
+https://github.com/user-attachments/assets/46beecf4-a12a-4983-be7e-5ce516b8b803
 
 ## Install
 

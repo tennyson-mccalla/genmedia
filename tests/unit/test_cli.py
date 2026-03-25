@@ -265,3 +265,63 @@ class TestAdditionalCoverage:
             assert result.exit_code == 0
             parsed = json.loads(result.output)
             assert parsed["files"][0]["path"].endswith(".jpg")
+
+
+class TestVideoImageToVideo:
+    def test_dry_run_with_image(self, runner, mock_env, tmp_path):
+        img = tmp_path / "frame.png"
+        img.write_bytes(b"fake-frame")
+        result = runner.invoke(cli, ["video", "animate this", "--image", str(img), "--dry-run"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["config"]["image"] == str(img)
+
+    def test_dry_run_with_image_and_last_frame(self, runner, mock_env, tmp_path):
+        first = tmp_path / "first.png"
+        last = tmp_path / "last.png"
+        first.write_bytes(b"frame-a")
+        last.write_bytes(b"frame-b")
+        result = runner.invoke(cli, [
+            "video", "morph between frames",
+            "--image", str(first), "--last-frame", str(last), "--dry-run",
+        ])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["config"]["image"] == str(first)
+        assert parsed["config"]["last_frame"] == str(last)
+
+    def test_last_frame_without_image_fails(self, runner, mock_env, tmp_path):
+        last = tmp_path / "last.png"
+        last.write_bytes(b"frame-b")
+        result = runner.invoke(cli, ["video", "test", "--last-frame", str(last)])
+        assert result.exit_code == 2
+
+    def test_image_only_no_prompt(self, runner, mock_env, tmp_path):
+        img = tmp_path / "frame.png"
+        img.write_bytes(b"fake-frame")
+        result = runner.invoke(cli, ["video", "--image", str(img), "--dry-run"])
+        assert result.exit_code == 0
+
+    @patch("genmedia.cli.video.genai")
+    def test_image_to_video_success(self, mock_genai, runner, mock_env, tmp_path):
+        img = tmp_path / "frame.png"
+        img.write_bytes(b"fake-frame")
+
+        mock_video = MagicMock()
+        mock_video.video = MagicMock()
+
+        mock_operation = MagicMock()
+        mock_operation.done = True
+        mock_operation.result.generated_videos = [mock_video]
+
+        mock_genai.Client.return_value.models.generate_videos.return_value = mock_operation
+        mock_genai.Client.return_value.files.download.return_value = b"fake-video"
+
+        result = runner.invoke(cli, [
+            "video", "animate this", "--image", str(img),
+            "--output-dir", str(tmp_path),
+        ])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["status"] == "success"
+        assert parsed["request"]["image"] == str(img)

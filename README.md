@@ -4,14 +4,7 @@ Multimodal media generation CLI for Google GenAI. Images, video, and image editi
 
 ## Install
 
-### Homebrew (macOS)
-
-```bash
-brew tap tennyson-mccalla/tap
-brew install genmedia
-```
-
-### pipx (any platform)
+### pipx (recommended)
 
 ```bash
 pipx install git+https://github.com/tennyson-mccalla/genmedia.git
@@ -22,6 +15,8 @@ pipx install git+https://github.com/tennyson-mccalla/genmedia.git
 ```bash
 pip install git+https://github.com/tennyson-mccalla/genmedia.git
 ```
+
+Requires Python 3.11+.
 
 ## Setup
 

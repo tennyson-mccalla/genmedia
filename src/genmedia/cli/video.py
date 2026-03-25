@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import sys
 import time
@@ -27,11 +28,13 @@ from genmedia.validation import validate_config
 @click.option("--count", "-n", default=1, type=int, help="Number of videos")
 @click.option("--aspect", "-a", default=None, help="Aspect ratio: 16:9 or 9:16")
 @click.option("--duration", default=8, type=int, help="Duration: 4, 6, or 8 seconds")
+@click.option("--image", "-i", "image_path", default=None, type=click.Path(exists=True), help="First frame image for image-to-video")
+@click.option("--last-frame", default=None, type=click.Path(exists=True), help="Last frame image for frame interpolation")
 @click.option("--verbose", "-v", is_flag=True, help="Extra metadata (reserved for future use)")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
 @click.option("--list-models", is_flag=True, help="List available video models")
-def video(prompt, model, output, output_dir, count, aspect, duration, verbose, pretty, dry_run, list_models):
+def video(prompt, model, output, output_dir, count, aspect, duration, image_path, last_frame, verbose, pretty, dry_run, list_models):
     """Generate video using Veo models."""
     if list_models:
         if pretty:
@@ -41,10 +44,28 @@ def video(prompt, model, output, output_dir, count, aspect, duration, verbose, p
             click.echo(format_list_models(VIDEO_MODELS))
         sys.exit(0)
 
-    if prompt is None:
-        _exit_error("validation_error", "Prompt is required (use --list-models to list models without a prompt)", exit_code=2, pretty=pretty)
+    if prompt is None and not image_path:
+        _exit_error("validation_error", "Prompt or --image is required (use --list-models to list models without a prompt)", exit_code=2, pretty=pretty)
+
+    if last_frame and not image_path:
+        _exit_error("validation_error", "--last-frame requires --image (first frame)", exit_code=2, pretty=pretty)
 
     model = model or get_default_model("video")
+    prompt = prompt or ""
+
+    # Load images if provided
+    input_image_bytes = None
+    input_image_mime = None
+    last_frame_bytes = None
+    last_frame_mime = None
+
+    if image_path:
+        input_image_bytes = open(image_path, "rb").read()
+        input_image_mime = mimetypes.guess_type(image_path)[0] or "image/png"
+
+    if last_frame:
+        last_frame_bytes = open(last_frame, "rb").read()
+        last_frame_mime = mimetypes.guess_type(last_frame)[0] or "image/png"
 
     if dry_run:
         backend = VeoBackend(client=None)
@@ -54,11 +75,15 @@ def video(prompt, model, output, output_dir, count, aspect, duration, verbose, p
             aspect_ratio=aspect,
             duration_seconds=duration,
             count=count,
+            input_image=input_image_bytes,
+            input_image_mime=input_image_mime,
+            last_frame_image=last_frame_bytes,
+            last_frame_mime=last_frame_mime,
         )
 
         errors = validate_config(
             subcommand="video",
-            prompt=prompt,
+            prompt=prompt if prompt else "image-to-video",
             aspect_ratio=aspect,
             image_size=None,
             duration_seconds=duration,
@@ -69,18 +94,24 @@ def video(prompt, model, output, output_dir, count, aspect, duration, verbose, p
         )
 
         req = backend.build_request(config)
+        dry_run_config = dict(req["config"])
+        if image_path:
+            dry_run_config["image"] = image_path
+        if last_frame:
+            dry_run_config["last_frame"] = last_frame
+
         click.echo(format_dry_run(
             backend="VeoBackend",
             sdk_method="client.models.generate_videos",
             model=model,
-            config=req["config"],
+            config=dry_run_config,
             validation_errors=errors,
         ))
         sys.exit(0)
 
     errors = validate_config(
         subcommand="video",
-        prompt=prompt,
+        prompt=prompt if prompt else "image-to-video",
         aspect_ratio=aspect,
         image_size=None,
         duration_seconds=duration,
@@ -101,6 +132,10 @@ def video(prompt, model, output, output_dir, count, aspect, duration, verbose, p
         aspect_ratio=aspect,
         duration_seconds=duration,
         count=count,
+        input_image=input_image_bytes,
+        input_image_mime=input_image_mime,
+        last_frame_image=last_frame_bytes,
+        last_frame_mime=last_frame_mime,
     )
 
     retry = RetryWrapper()
@@ -139,6 +174,10 @@ def video(prompt, model, output, output_dir, count, aspect, duration, verbose, p
         request_info["aspect_ratio"] = aspect
     if duration:
         request_info["duration_seconds"] = duration
+    if image_path:
+        request_info["image"] = image_path
+    if last_frame:
+        request_info["last_frame"] = last_frame
 
     if pretty:
         from genmedia.output import format_pretty_success

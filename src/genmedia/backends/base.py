@@ -20,6 +20,8 @@ class MediaConfig:
     duration_seconds: int | None = None
     input_image: bytes | None = None
     input_image_mime: str | None = None
+    last_frame_image: bytes | None = None
+    last_frame_mime: str | None = None
 
 
 class ContentBlockedError(Exception):

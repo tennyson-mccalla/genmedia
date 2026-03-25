@@ -25,11 +25,28 @@ class VeoBackend(Backend):
 
     def generate(self, config: MediaConfig) -> list[MediaResult]:
         req = self.build_request(config)
-        try:
-            operation = self.client.models.generate_videos(
-                model=req["model"], prompt=req["prompt"],
-                config=types.GenerateVideosConfig(**req["config"]),
+
+        veo_config = dict(req["config"])
+        if config.last_frame_image:
+            veo_config["last_frame"] = types.Image(
+                image_bytes=config.last_frame_image,
+                mime_type=config.last_frame_mime or "image/png",
             )
+
+        kwargs = {
+            "model": req["model"],
+            "prompt": req["prompt"],
+            "config": types.GenerateVideosConfig(**veo_config),
+        }
+
+        if config.input_image:
+            kwargs["image"] = types.Image(
+                image_bytes=config.input_image,
+                mime_type=config.input_image_mime or "image/png",
+            )
+
+        try:
+            operation = self.client.models.generate_videos(**kwargs)
         except Exception as exc:
             raise classify_sdk_error(exc) from exc
 

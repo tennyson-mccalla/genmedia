@@ -2,6 +2,15 @@
 
 Multimodal media generation CLI for Google GenAI. Images, video, and image editing from the terminal. Bring your own API key.
 
+## Examples
+
+| Generate | Edit | Generate |
+|----------|------|----------|
+| ![cat on skateboard](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_001.jpg) | ![red triangle](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_003.jpg) | ![crystal orb](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_005.jpg) |
+| `genmedia image "a cat on a skateboard"` | *before editing* | `genmedia image "a glowing crystal orb floating in darkness"` |
+| ![crystal cat](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_006.jpg) | ![blue triangle](https://github.com/tennyson-mccalla/genmedia/releases/download/v0.1.1/genmedia_004.jpg) | |
+| `genmedia image "crystal cat in a forest"` | `genmedia edit red_triangle.jpg "change to blue, yellow gradient background"` | |
+
 ## Install
 
 ```bash

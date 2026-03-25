@@ -14,7 +14,7 @@ Or with pip:
 pip install genmedia
 ```
 
-Requires Python 3.11+.
+Requires Python 3.11+. If you don't have `pipx`, install it first with `brew install pipx` (macOS) or `pip install pipx`.
 
 ## Setup
 

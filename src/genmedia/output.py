@@ -24,7 +24,7 @@ def detect_mime_type(data: bytes) -> str | None:
 
 
 def format_success(*, files: list[dict], model: str, elapsed_seconds: float, request: dict) -> str:
-    return json.dumps({"status": "success", "files": files, "model": model, "elapsed_seconds": round(elapsed_seconds, 2), "request": request}, indent=2)
+    return json.dumps({"status": "success", "files": files, "model": model, "elapsed_seconds": round(elapsed_seconds, 2), "request": request}, indent=2, ensure_ascii=False)
 
 
 def format_error(*, error: str, message: str, retries_attempted: int = 0, elapsed_seconds: float = 0.0, files: list[dict] | None = None, **extra) -> str:
@@ -32,15 +32,15 @@ def format_error(*, error: str, message: str, retries_attempted: int = 0, elapse
     if files:
         payload["files"] = files
     payload.update(extra)
-    return json.dumps(payload, indent=2)
+    return json.dumps(payload, indent=2, ensure_ascii=False)
 
 
 def format_dry_run(*, backend: str, sdk_method: str, model: str, config: dict, validation_errors: list[str]) -> str:
-    return json.dumps({"status": "dry_run", "backend": backend, "sdk_method": sdk_method, "model": model, "config": config, "validation_errors": validation_errors}, indent=2)
+    return json.dumps({"status": "dry_run", "backend": backend, "sdk_method": sdk_method, "model": model, "config": config, "validation_errors": validation_errors}, indent=2, ensure_ascii=False)
 
 
 def format_list_models(models: list[dict]) -> str:
-    return json.dumps({"models": models}, indent=2)
+    return json.dumps({"models": models}, indent=2, ensure_ascii=False)
 
 
 def auto_name(*, output_dir: str | None = None, extension: str) -> str:

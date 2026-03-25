@@ -6,11 +6,32 @@ build-backend = "hatchling.build"
 name = "genmedia"
 version = "0.1.0"
 description = "Multimodal media generation CLI for Google GenAI"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
+keywords = ["gemini", "genai", "image-generation", "video-generation", "cli", "veo", "imagen"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Video",
+]
 dependencies = [
     "google-genai>=1.0.0",
     "click>=8.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/tennyson-mccalla/genmedia"
+Repository = "https://github.com/tennyson-mccalla/genmedia"
+Issues = "https://github.com/tennyson-mccalla/genmedia/issues"
 
 [project.optional-dependencies]
 dev = [

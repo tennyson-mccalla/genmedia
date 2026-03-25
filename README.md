@@ -5,16 +5,20 @@ Multimodal media generation CLI for Google GenAI. Images, video, and image editi
 ## Install
 
 ```bash
+# uv (fastest)
+uv tool install genmedia
+
+# or run without installing
+uvx genmedia image "a cat on a skateboard" --pretty
+
+# pipx
 pipx install genmedia
-```
 
-Or with pip:
-
-```bash
+# pip
 pip install genmedia
 ```
 
-Requires Python 3.11+. If you don't have `pipx`, install it first with `brew install pipx` (macOS) or `pip install pipx`.
+Requires Python 3.11+.
 
 ## Setup
 

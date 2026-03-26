@@ -23,19 +23,21 @@ from genmedia.validation import validate_config
 @click.command()
 @click.argument("prompt", required=False, default=None)
 @click.option("--model", "-m", default=None, help="Model ID")
-@click.option("--output", "-o", default=None, help="Output file path")
+@click.option("--output", "-o", default=None, help="Output file path (use - for stdout)")
 @click.option("--output-dir", "-d", default=None, help="Output directory")
 @click.option("--count", "-n", default=1, type=int, help="Number of videos")
 @click.option("--aspect", "-a", default=None, help="Aspect ratio: 16:9 or 9:16")
 @click.option("--duration", default=8, type=int, help="Duration: 4, 6, or 8 seconds")
-@click.option("--image", "-i", "image_path", default=None, type=click.Path(exists=True), help="First frame image for image-to-video")
+@click.option("--image", "-i", "image_path", default=None, help="First frame image for image-to-video (use - for stdin)")
 @click.option("--last-frame", default=None, type=click.Path(exists=True), help="Last frame image for frame interpolation")
 @click.option("--resolution", "-r", default=None, type=click.Choice(["720p", "1080p", "4K"], case_sensitive=False), help="Video resolution: 720p, 1080p, 4K")
 @click.option("--enhance-prompt", is_flag=True, help="Let Veo rewrite your prompt for more cinematic results")
+@click.option("--style-ref", default=None, type=click.Path(exists=True), help="Style reference image for visual style conditioning")
+@click.option("--asset-ref", multiple=True, type=click.Path(exists=True), help="Asset reference image (up to 3, for character/object consistency)")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
 @click.option("--list-models", is_flag=True, help="List available video models")
-def video(prompt, model, output, output_dir, count, aspect, duration, image_path, last_frame, resolution, enhance_prompt, pretty, dry_run, list_models):
+def video(prompt, model, output, output_dir, count, aspect, duration, image_path, last_frame, resolution, enhance_prompt, style_ref, asset_ref, pretty, dry_run, list_models):
     """Generate video using Veo models."""
     if list_models:
         if pretty:
@@ -45,7 +47,20 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             click.echo(format_list_models(VIDEO_MODELS))
         sys.exit(0)
 
-    if prompt is None and not image_path:
+    # Reference image validation
+    if style_ref and asset_ref:
+        _exit_error("validation_error", "--style-ref and --asset-ref cannot be used together", exit_code=2, pretty=pretty)
+
+    if (style_ref or asset_ref) and (image_path or last_frame):
+        _exit_error("validation_error", "--style-ref/--asset-ref cannot be used with --image or --last-frame", exit_code=2, pretty=pretty)
+
+    if (style_ref or asset_ref) and not prompt:
+        _exit_error("validation_error", "--style-ref/--asset-ref require a text prompt", exit_code=2, pretty=pretty)
+
+    if prompt is None and not image_path and not sys.stdin.isatty():
+        prompt = sys.stdin.read().strip()
+
+    if not prompt and not image_path:
         _exit_error("validation_error", "Prompt or --image is required (use --list-models to list models without a prompt)", exit_code=2, pretty=pretty)
 
     if last_frame and not image_path:
@@ -60,13 +75,34 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
     last_frame_bytes = None
     last_frame_mime = None
 
-    if image_path:
+    if image_path == "-":
+        input_image_bytes = sys.stdin.buffer.read()
+        input_image_mime = "image/png"
+    elif image_path:
+        if not os.path.isfile(image_path):
+            _exit_error("validation_error", f"Image file not found: {image_path}", exit_code=2, pretty=pretty)
         input_image_bytes = open(image_path, "rb").read()
         input_image_mime = mimetypes.guess_type(image_path)[0] or "image/png"
 
     if last_frame:
         last_frame_bytes = open(last_frame, "rb").read()
         last_frame_mime = mimetypes.guess_type(last_frame)[0] or "image/png"
+
+    # Load reference images
+    style_ref_bytes = None
+    style_ref_mime = None
+    asset_refs_loaded = None
+
+    if style_ref:
+        style_ref_bytes = open(style_ref, "rb").read()
+        style_ref_mime = mimetypes.guess_type(style_ref)[0] or "image/png"
+
+    if asset_ref:
+        asset_refs_loaded = []
+        for path in asset_ref:
+            data = open(path, "rb").read()
+            mime = mimetypes.guess_type(path)[0] or "image/png"
+            asset_refs_loaded.append((data, mime))
 
     if dry_run:
         backend = VeoBackend(client=None)
@@ -82,6 +118,9 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             last_frame_mime=last_frame_mime,
             resolution=resolution,
             enhance_prompt=enhance_prompt,
+            style_ref=style_ref_bytes,
+            style_ref_mime=style_ref_mime,
+            asset_refs=asset_refs_loaded,
         )
 
         errors = validate_config(
@@ -106,6 +145,10 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             dry_run_config["resolution"] = resolution
         if enhance_prompt:
             dry_run_config["enhance_prompt"] = enhance_prompt
+        if style_ref:
+            dry_run_config["style_ref"] = style_ref
+        if asset_ref:
+            dry_run_config["asset_refs"] = list(asset_ref)
 
         click.echo(format_dry_run(
             backend="VeoBackend",
@@ -145,6 +188,9 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         last_frame_mime=last_frame_mime,
         resolution=resolution,
         enhance_prompt=enhance_prompt,
+        style_ref=style_ref_bytes,
+        style_ref_mime=style_ref_mime,
+        asset_refs=asset_refs_loaded,
     )
 
     retry = RetryWrapper()
@@ -162,6 +208,9 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         elapsed = time.monotonic() - start
         error_type = "rate_limited" if getattr(e, "status_code", None) == 429 else "server_error"
         _exit_error(error_type, str(e), retries_attempted=retry.attempts, elapsed_seconds=elapsed, exit_code=1, pretty=pretty)
+    except TimeoutError as e:
+        elapsed = time.monotonic() - start
+        _exit_error("timeout", str(e), elapsed_seconds=elapsed, exit_code=1, pretty=pretty)
     except NonRetryableError as e:
         elapsed = time.monotonic() - start
         _exit_error("api_error", str(e), elapsed_seconds=elapsed, exit_code=1, pretty=pretty)
@@ -191,6 +240,10 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         request_info["resolution"] = resolution
     if enhance_prompt:
         request_info["enhance_prompt"] = enhance_prompt
+    if style_ref:
+        request_info["style_ref"] = style_ref
+    if asset_ref:
+        request_info["asset_refs"] = list(asset_ref)
 
     if pretty:
         from genmedia.output import format_pretty_success

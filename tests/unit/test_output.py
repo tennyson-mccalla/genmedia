@@ -169,3 +169,33 @@ def test_write_media_files_explicit_output_keeps_path():
         assert written[0]["path"].endswith("my_image.png")
         # But mime_type is corrected
         assert written[0]["mime_type"] == "image/jpeg"
+
+
+def test_write_media_files_stdout():
+    """--output - writes binary to stdout."""
+    import io
+    import sys
+    from unittest.mock import patch
+    from genmedia.backends.base import MediaResult
+
+    results = [MediaResult(data=PNG_BYTES, mime_type="image/png", metadata={})]
+    fake_stdout = io.BytesIO()
+    with patch.object(sys, "stdout", wraps=sys.stdout) as mock_stdout:
+        mock_stdout.buffer = fake_stdout
+        written = write_media_files(results=results, output="-", output_dir=None, output_format="png")
+    assert written[0]["path"] == "-"
+    assert written[0]["mime_type"] == "image/png"
+    assert fake_stdout.getvalue() == PNG_BYTES
+
+
+def test_write_media_files_stdout_rejects_multiple():
+    """--output - with multiple results should raise ValueError."""
+    import pytest
+    from genmedia.backends.base import MediaResult
+
+    results = [
+        MediaResult(data=PNG_BYTES, mime_type="image/png", metadata={}),
+        MediaResult(data=PNG_BYTES, mime_type="image/png", metadata={}),
+    ]
+    with pytest.raises(ValueError, match="single file"):
+        write_media_files(results=results, output="-", output_dir=None, output_format="png")

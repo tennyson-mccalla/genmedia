@@ -20,3 +20,5 @@ def test_veo_happy_path():
         assert parsed["status"] == "success"
         assert len(parsed["files"]) == 1
         assert parsed["files"][0]["mime_type"] == "video/mp4"
+        assert parsed["files"][0]["size_bytes"] > 0
+        assert os.path.isfile(parsed["files"][0]["path"])

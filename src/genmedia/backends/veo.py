@@ -1,9 +1,13 @@
+import os
 import time
 
 from google.genai import types
+from google.genai.types import VideoGenerationReferenceImage, VideoGenerationReferenceType
 
 from genmedia.backends.base import Backend, ContentBlockedError, MediaConfig, MediaResult
 from genmedia.retry import classify_sdk_error
+
+DEFAULT_POLL_TIMEOUT = 600  # 10 minutes
 
 
 class VeoBackend(Backend):
@@ -11,6 +15,7 @@ class VeoBackend(Backend):
 
     def __init__(self, client):
         self.client = client
+        self.poll_timeout = float(os.environ.get("GENMEDIA_POLL_TIMEOUT", DEFAULT_POLL_TIMEOUT))
 
     def build_request(self, config: MediaConfig) -> dict:
         veo_config = {"number_of_videos": config.count}
@@ -31,11 +36,30 @@ class VeoBackend(Backend):
         req = self.build_request(config)
 
         veo_config = dict(req["config"])
-        if config.last_frame_image:
+
+        use_reference_images = config.style_ref or config.asset_refs
+
+        if not use_reference_images and config.last_frame_image:
             veo_config["last_frame"] = types.Image(
                 image_bytes=config.last_frame_image,
                 mime_type=config.last_frame_mime or "image/png",
             )
+
+        if config.style_ref:
+            veo_config["reference_images"] = [
+                VideoGenerationReferenceImage(
+                    image=types.Image(image_bytes=config.style_ref, mime_type=config.style_ref_mime or "image/png"),
+                    reference_type=VideoGenerationReferenceType.STYLE,
+                )
+            ]
+        elif config.asset_refs:
+            veo_config["reference_images"] = [
+                VideoGenerationReferenceImage(
+                    image=types.Image(image_bytes=data, mime_type=mime),
+                    reference_type=VideoGenerationReferenceType.ASSET,
+                )
+                for data, mime in config.asset_refs
+            ]
 
         kwargs = {
             "model": req["model"],
@@ -43,7 +67,7 @@ class VeoBackend(Backend):
             "config": types.GenerateVideosConfig(**veo_config),
         }
 
-        if config.input_image:
+        if config.input_image and not use_reference_images:
             kwargs["image"] = types.Image(
                 image_bytes=config.input_image,
                 mime_type=config.input_image_mime or "image/png",
@@ -75,7 +99,10 @@ class VeoBackend(Backend):
         return results
 
     def _poll_operation(self, operation):
+        deadline = time.monotonic() + self.poll_timeout
         while not operation.done:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Video generation timed out after {self.poll_timeout:.0f}s")
             time.sleep(self.POLL_INTERVAL)
             operation = self.client.operations.get(operation)
         return operation

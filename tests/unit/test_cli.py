@@ -347,3 +347,102 @@ class TestVideoV020Features:
     def test_verbose_flag_removed(self, runner, mock_env):
         result = runner.invoke(cli, ["image", "test", "-v", "--dry-run"])
         assert result.exit_code != 0  # -v is no longer recognized
+
+    def test_dry_run_with_style_ref(self, runner, mock_env, tmp_path):
+        ref = tmp_path / "style.png"
+        ref.write_bytes(b"style-image")
+        result = runner.invoke(cli, ["video", "test prompt", "--style-ref", str(ref), "--dry-run"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["config"]["style_ref"] == str(ref)
+
+    def test_dry_run_with_asset_refs(self, runner, mock_env, tmp_path):
+        a1 = tmp_path / "asset1.png"
+        a2 = tmp_path / "asset2.png"
+        a1.write_bytes(b"asset-1")
+        a2.write_bytes(b"asset-2")
+        result = runner.invoke(cli, [
+            "video", "test prompt",
+            "--asset-ref", str(a1), "--asset-ref", str(a2),
+            "--dry-run",
+        ])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert len(parsed["config"]["asset_refs"]) == 2
+
+    def test_style_ref_and_asset_ref_conflict(self, runner, mock_env, tmp_path):
+        ref = tmp_path / "ref.png"
+        ref.write_bytes(b"ref")
+        result = runner.invoke(cli, [
+            "video", "test", "--style-ref", str(ref), "--asset-ref", str(ref),
+        ])
+        assert result.exit_code == 2
+
+    def test_style_ref_with_image_conflict(self, runner, mock_env, tmp_path):
+        ref = tmp_path / "ref.png"
+        img = tmp_path / "img.png"
+        ref.write_bytes(b"ref")
+        img.write_bytes(b"img")
+        result = runner.invoke(cli, [
+            "video", "test", "--style-ref", str(ref), "--image", str(img),
+        ])
+        assert result.exit_code == 2
+
+    def test_style_ref_requires_prompt(self, runner, mock_env, tmp_path):
+        ref = tmp_path / "ref.png"
+        ref.write_bytes(b"ref")
+        result = runner.invoke(cli, ["video", "--style-ref", str(ref)])
+        assert result.exit_code == 2
+
+
+class TestStdinStdoutPiping:
+    @patch("genmedia.cli.image.genai")
+    def test_stdout_output(self, mock_genai, runner, mock_env):
+        mock_part = MagicMock()
+        mock_part.inline_data = MagicMock()
+        mock_part.inline_data.data = b"\x89PNG\r\n\x1a\nfake"
+        mock_part.inline_data.mime_type = "image/png"
+        mock_part.text = None
+
+        mock_response = MagicMock()
+        mock_response.prompt_feedback = None
+        mock_response.candidates = [MagicMock()]
+        mock_response.candidates[0].finish_reason = "STOP"
+        mock_response.candidates[0].content.parts = [mock_part]
+
+        mock_genai.Client.return_value.models.generate_content.return_value = mock_response
+
+        result = runner.invoke(cli, ["image", "a cat", "--output", "-"])
+        assert result.exit_code == 0
+
+    def test_stdin_prompt_for_image(self, runner, mock_env):
+        with patch("genmedia.cli.image.genai"):
+            result = runner.invoke(cli, ["image", "--dry-run"], input="a piped prompt\n")
+            assert result.exit_code == 0
+            parsed = json.loads(result.output)
+            assert parsed["status"] == "dry_run"
+
+    def test_stdin_prompt_for_video(self, runner, mock_env):
+        result = runner.invoke(cli, ["video", "--dry-run"], input="a piped video prompt\n")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["status"] == "dry_run"
+
+
+class TestVideoTimeout:
+    @patch("genmedia.cli.video.genai")
+    def test_poll_timeout_produces_clean_error(self, mock_genai, runner, mock_env):
+        pending_op = MagicMock()
+        pending_op.done = False
+
+        mock_genai.Client.return_value.models.generate_videos.return_value = pending_op
+        mock_genai.Client.return_value.operations.get.return_value = pending_op
+
+        with patch.dict(os.environ, {"GENMEDIA_POLL_TIMEOUT": "0.1"}):
+            with patch("genmedia.backends.veo.time.sleep"):
+                result = runner.invoke(cli, ["video", "a sunset"])
+
+        assert result.exit_code == 1
+        err = json.loads(result.stderr)
+        assert err["error"] == "timeout"
+        assert "timed out" in err["message"]

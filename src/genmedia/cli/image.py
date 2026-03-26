@@ -24,7 +24,7 @@ from genmedia.validation import validate_config
 @click.command()
 @click.argument("prompt", required=False, default=None)
 @click.option("--model", "-m", default=None, help="Model ID")
-@click.option("--output", "-o", default=None, help="Output file path")
+@click.option("--output", "-o", default=None, help="Output file path (use - for stdout)")
 @click.option("--output-dir", "-d", default=None, help="Output directory")
 @click.option("--count", "-n", default=1, type=int, help="Number of images")
 @click.option("--aspect", "-a", default=None, help="Aspect ratio (e.g. 16:9)")
@@ -44,7 +44,10 @@ def image(prompt, model, output, output_dir, count, aspect, size, output_format,
             click.echo(format_list_models(IMAGE_MODELS))
         sys.exit(0)
 
-    if prompt is None:
+    if prompt is None and not sys.stdin.isatty():
+        prompt = sys.stdin.read().strip()
+
+    if not prompt:
         _exit_error("validation_error", "Prompt is required (use --list-models to list models without a prompt)", exit_code=2, pretty=pretty)
 
     model = model or get_default_model("image")

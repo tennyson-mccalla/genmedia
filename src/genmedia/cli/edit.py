@@ -24,7 +24,7 @@ from genmedia.validation import validate_config
 @click.argument("input_image")
 @click.argument("prompt")
 @click.option("--model", "-m", default=None, help="Model ID")
-@click.option("--output", "-o", default=None, help="Output file path")
+@click.option("--output", "-o", default=None, help="Output file path (use - for stdout)")
 @click.option("--output-dir", "-d", default=None, help="Output directory")
 @click.option("--count", "-n", default=1, type=int, help="Number of variations")
 @click.option("--aspect", "-a", default=None, help="Override aspect ratio")
@@ -48,10 +48,17 @@ def edit(input_image, prompt, model, output, output_dir, count, aspect, size, ou
         input_image=input_image,
     )
 
+    if input_image == "-":
+        input_image_bytes_stdin = sys.stdin.buffer.read()
+    else:
+        input_image_bytes_stdin = None
+
     if dry_run:
         image_bytes = b""
         mime = "image/png"
-        if os.path.isfile(input_image):
+        if input_image == "-":
+            image_bytes = input_image_bytes_stdin
+        elif os.path.isfile(input_image):
             image_bytes = open(input_image, "rb").read()
             mime = mimetypes.guess_type(input_image)[0] or "image/png"
 
@@ -80,8 +87,12 @@ def edit(input_image, prompt, model, output, output_dir, count, aspect, size, ou
     if errors:
         _exit_error("validation_error", "; ".join(errors), exit_code=2, pretty=pretty)
 
-    image_bytes = open(input_image, "rb").read()
-    mime = mimetypes.guess_type(input_image)[0] or "image/png"
+    if input_image == "-":
+        image_bytes = input_image_bytes_stdin
+        mime = "image/png"
+    else:
+        image_bytes = open(input_image, "rb").read()
+        mime = mimetypes.guess_type(input_image)[0] or "image/png"
 
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     backend = GeminiImageBackend(client=client)

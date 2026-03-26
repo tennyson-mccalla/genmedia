@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from google.genai import types
 
 from genmedia.backends.base import Backend, ContentBlockedError, MediaConfig, MediaResult
@@ -37,43 +39,54 @@ class GeminiImageBackend(Backend):
     def validate(self, config: MediaConfig) -> list[str]:
         return []
 
-    def generate(self, config: MediaConfig) -> list[MediaResult]:
-        results: list[MediaResult] = []
+    def _generate_one(self, config: MediaConfig) -> list[MediaResult]:
+        """Generate a single image. Returns list of MediaResult from one API call."""
+        req = self.build_request(config)
 
-        for _ in range(config.count):
-            req = self.build_request(config)
+        image_config_obj = None
+        if "image_config" in req["config"]:
+            image_config_obj = types.ImageConfig(**req["config"]["image_config"])
 
-            image_config_obj = None
-            if "image_config" in req["config"]:
-                image_config_obj = types.ImageConfig(**req["config"]["image_config"])
+        try:
+            response = self.client.models.generate_content(
+                model=req["model"],
+                contents=req["contents"],
+                config=types.GenerateContentConfig(
+                    response_modalities=req["config"]["response_modalities"],
+                    image_config=image_config_obj,
+                ),
+            )
+        except Exception as exc:
+            raise classify_sdk_error(exc) from exc
 
-            try:
-                response = self.client.models.generate_content(
-                    model=req["model"],
-                    contents=req["contents"],
-                    config=types.GenerateContentConfig(
-                        response_modalities=req["config"]["response_modalities"],
-                        image_config=image_config_obj,
-                    ),
-                )
-            except Exception as exc:
-                raise classify_sdk_error(exc) from exc
+        self._check_safety(response)
 
-            self._check_safety(response)
+        if not response.candidates:
+            raise ContentBlockedError("No candidates in response", block_reason="UNKNOWN")
 
-            if not response.candidates:
-                raise ContentBlockedError("No candidates in response", block_reason="UNKNOWN")
-
-            parts = getattr(response.candidates[0].content, "parts", None) or []
-            for part in parts:
-                if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
-                    results.append(
-                        MediaResult(
-                            data=part.inline_data.data,
-                            mime_type=getattr(part.inline_data, "mime_type", "image/png"),
-                            metadata={},
-                        )
+        results = []
+        parts = getattr(response.candidates[0].content, "parts", None) or []
+        for part in parts:
+            if hasattr(part, "inline_data") and part.inline_data and part.inline_data.data:
+                results.append(
+                    MediaResult(
+                        data=part.inline_data.data,
+                        mime_type=getattr(part.inline_data, "mime_type", "image/png"),
+                        metadata={},
                     )
+                )
+        return results
+
+    def generate(self, config: MediaConfig) -> list[MediaResult]:
+        if config.count == 1:
+            results = self._generate_one(config)
+        else:
+            results: list[MediaResult] = []
+            max_workers = min(config.count, 3)
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = [pool.submit(self._generate_one, config) for _ in range(config.count)]
+                for future in as_completed(futures):
+                    results.extend(future.result())
 
         if not results:
             raise ContentBlockedError(

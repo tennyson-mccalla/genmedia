@@ -19,3 +19,5 @@ def test_imagen_happy_path():
         parsed = json.loads(result.output)
         assert parsed["status"] == "success"
         assert len(parsed["files"]) == 1
+        assert parsed["files"][0]["size_bytes"] > 0
+        assert os.path.isfile(parsed["files"][0]["path"])

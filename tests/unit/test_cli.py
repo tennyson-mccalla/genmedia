@@ -325,3 +325,25 @@ class TestVideoImageToVideo:
         parsed = json.loads(result.output)
         assert parsed["status"] == "success"
         assert parsed["request"]["image"] == str(img)
+
+
+class TestVideoV020Features:
+    def test_dry_run_with_resolution(self, runner, mock_env):
+        result = runner.invoke(cli, ["video", "test", "--resolution", "1080p", "--dry-run"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["config"]["resolution"] == "1080p"
+
+    def test_dry_run_with_enhance_prompt(self, runner, mock_env):
+        result = runner.invoke(cli, ["video", "test", "--enhance-prompt", "--dry-run"])
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["config"]["enhance_prompt"] is True
+
+    def test_resolution_case_insensitive(self, runner, mock_env):
+        result = runner.invoke(cli, ["video", "test", "--resolution", "4k", "--dry-run"])
+        assert result.exit_code == 0
+
+    def test_verbose_flag_removed(self, runner, mock_env):
+        result = runner.invoke(cli, ["image", "test", "-v", "--dry-run"])
+        assert result.exit_code != 0  # -v is no longer recognized

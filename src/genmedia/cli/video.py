@@ -30,11 +30,12 @@ from genmedia.validation import validate_config
 @click.option("--duration", default=8, type=int, help="Duration: 4, 6, or 8 seconds")
 @click.option("--image", "-i", "image_path", default=None, type=click.Path(exists=True), help="First frame image for image-to-video")
 @click.option("--last-frame", default=None, type=click.Path(exists=True), help="Last frame image for frame interpolation")
-@click.option("--verbose", "-v", is_flag=True, help="Extra metadata (reserved for future use)")
+@click.option("--resolution", "-r", default=None, type=click.Choice(["720p", "1080p", "4K"], case_sensitive=False), help="Video resolution: 720p, 1080p, 4K")
+@click.option("--enhance-prompt", is_flag=True, help="Let Veo rewrite your prompt for more cinematic results")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
 @click.option("--list-models", is_flag=True, help="List available video models")
-def video(prompt, model, output, output_dir, count, aspect, duration, image_path, last_frame, verbose, pretty, dry_run, list_models):
+def video(prompt, model, output, output_dir, count, aspect, duration, image_path, last_frame, resolution, enhance_prompt, pretty, dry_run, list_models):
     """Generate video using Veo models."""
     if list_models:
         if pretty:
@@ -79,6 +80,8 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             input_image_mime=input_image_mime,
             last_frame_image=last_frame_bytes,
             last_frame_mime=last_frame_mime,
+            resolution=resolution,
+            enhance_prompt=enhance_prompt,
         )
 
         errors = validate_config(
@@ -99,6 +102,10 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             dry_run_config["image"] = image_path
         if last_frame:
             dry_run_config["last_frame"] = last_frame
+        if resolution:
+            dry_run_config["resolution"] = resolution
+        if enhance_prompt:
+            dry_run_config["enhance_prompt"] = enhance_prompt
 
         click.echo(format_dry_run(
             backend="VeoBackend",
@@ -136,6 +143,8 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         input_image_mime=input_image_mime,
         last_frame_image=last_frame_bytes,
         last_frame_mime=last_frame_mime,
+        resolution=resolution,
+        enhance_prompt=enhance_prompt,
     )
 
     retry = RetryWrapper()
@@ -178,6 +187,10 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         request_info["image"] = image_path
     if last_frame:
         request_info["last_frame"] = last_frame
+    if resolution:
+        request_info["resolution"] = resolution
+    if enhance_prompt:
+        request_info["enhance_prompt"] = enhance_prompt
 
     if pretty:
         from genmedia.output import format_pretty_success

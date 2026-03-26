@@ -22,6 +22,8 @@ class MediaConfig:
     input_image_mime: str | None = None
     last_frame_image: bytes | None = None
     last_frame_mime: str | None = None
+    resolution: str | None = None
+    enhance_prompt: bool = False
 
 
 class ContentBlockedError(Exception):

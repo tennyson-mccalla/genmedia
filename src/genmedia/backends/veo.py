@@ -18,6 +18,10 @@ class VeoBackend(Backend):
             veo_config["aspect_ratio"] = config.aspect_ratio
         if config.duration_seconds:
             veo_config["duration_seconds"] = config.duration_seconds
+        if config.resolution:
+            veo_config["resolution"] = config.resolution
+        if config.enhance_prompt:
+            veo_config["enhance_prompt"] = True
         return {"model": config.model, "prompt": config.prompt, "config": veo_config}
 
     def validate(self, config: MediaConfig) -> list[str]:

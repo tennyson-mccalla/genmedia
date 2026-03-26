@@ -30,12 +30,11 @@ from genmedia.validation import validate_config
 @click.option("--aspect", "-a", default=None, help="Aspect ratio (e.g. 16:9)")
 @click.option("--size", "-s", default=None, help="Image size: 512, 1K, 2K, 4K")
 @click.option("--format", "-f", "output_format", default="png", help="Output format: png, jpg, webp")
-@click.option("--verbose", "-v", is_flag=True, help="Extra metadata in output (reserved for future use)")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
 @click.option("--list-models", is_flag=True, help="List available models")
 @click.option("--json", "json_flag", is_flag=True, hidden=True, help="JSON output (default, no-op)")
-def image(prompt, model, output, output_dir, count, aspect, size, output_format, verbose, pretty, dry_run, list_models, json_flag):
+def image(prompt, model, output, output_dir, count, aspect, size, output_format, pretty, dry_run, list_models, json_flag):
     """Generate images using Gemini or Imagen models."""
     if list_models:
         if pretty:

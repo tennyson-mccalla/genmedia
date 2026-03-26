@@ -30,10 +30,9 @@ from genmedia.validation import validate_config
 @click.option("--aspect", "-a", default=None, help="Override aspect ratio")
 @click.option("--size", "-s", default=None, help="Override image size")
 @click.option("--format", "-f", "output_format", default="png", help="Output format: png, jpg, webp")
-@click.option("--verbose", "-v", is_flag=True, help="Extra metadata (reserved for future use)")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
-def edit(input_image, prompt, model, output, output_dir, count, aspect, size, output_format, verbose, pretty, dry_run):
+def edit(input_image, prompt, model, output, output_dir, count, aspect, size, output_format, pretty, dry_run):
     """Edit/inpaint an existing image."""
     model = model or get_default_model("edit")
 

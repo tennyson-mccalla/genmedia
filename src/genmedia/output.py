@@ -82,6 +82,21 @@ def format_pretty_list_models(models: list[dict]) -> str:
 
 
 def write_media_files(*, results: list[MediaResult], output: str | None, output_dir: str | None, output_format: str) -> list[dict]:
+    import sys
+
+    # stdout mode: write raw bytes to stdout, return minimal metadata
+    if output == "-":
+        if len(results) != 1:
+            raise ValueError("--output - only supports single file output (use --count 1)")
+        result = results[0]
+        actual_mime = detect_mime_type(result.data) or result.mime_type
+        sys.stdout.buffer.write(result.data)
+        sys.stdout.buffer.flush()
+        entry = {"path": "-", "mime_type": actual_mime, "size_bytes": len(result.data)}
+        if result.metadata:
+            entry.update(result.metadata)
+        return [entry]
+
     fallback_ext = FORMAT_TO_EXT.get(output_format, f".{output_format}")
     written: list[dict] = []
     for i, result in enumerate(results):

@@ -95,10 +95,69 @@ class TestGeminiImageBackend:
         assert len(results) == 3
         assert self.client.models.generate_content.call_count == 3
 
+    def test_connection_error_classified(self):
+        """Raw ConnectionError from SDK should be classified as NonRetryableError."""
+        from genmedia.retry import NonRetryableError
+        self.client.models.generate_content.side_effect = ConnectionError("Connection refused")
+        config = MediaConfig(prompt="a cat", model="gemini-3.1-flash-image-preview")
+        with pytest.raises(NonRetryableError, match="Connection refused"):
+            self.backend.generate(config)
+
+    def test_timeout_error_classified(self):
+        """Raw TimeoutError from SDK should be classified as NonRetryableError."""
+        from genmedia.retry import NonRetryableError
+        self.client.models.generate_content.side_effect = TimeoutError("Read timed out")
+        config = MediaConfig(prompt="a cat", model="gemini-3.1-flash-image-preview")
+        with pytest.raises(NonRetryableError, match="Read timed out"):
+            self.backend.generate(config)
+
     def test_image_size_normalized_uppercase(self):
         config = MediaConfig(prompt="a cat", model="gemini-3.1-flash-image-preview", image_size="4k")
         req = self.backend.build_request(config)
         assert req["config"]["image_config"]["image_size"] == "4K"
+
+    def test_generate_count_concurrent(self):
+        """Concurrent count=3 should call API 3 times and return 3 results."""
+        mock_part = MagicMock()
+        mock_part.inline_data = MagicMock()
+        mock_part.inline_data.data = b"image-bytes"
+        mock_part.inline_data.mime_type = "image/png"
+        mock_part.text = None
+
+        mock_response = MagicMock()
+        mock_response.prompt_feedback = None
+        mock_response.candidates = [MagicMock()]
+        mock_response.candidates[0].finish_reason = "STOP"
+        mock_response.candidates[0].content.parts = [mock_part]
+
+        self.client.models.generate_content.return_value = mock_response
+
+        config = MediaConfig(prompt="a cat", model="gemini-3.1-flash-image-preview", count=3)
+        results = self.backend.generate(config)
+        assert len(results) == 3
+        assert self.client.models.generate_content.call_count == 3
+
+    def test_generate_count_one_no_threadpool(self):
+        """count=1 should not use ThreadPoolExecutor (fast path)."""
+        mock_part = MagicMock()
+        mock_part.inline_data = MagicMock()
+        mock_part.inline_data.data = b"image-bytes"
+        mock_part.inline_data.mime_type = "image/png"
+        mock_part.text = None
+
+        mock_response = MagicMock()
+        mock_response.prompt_feedback = None
+        mock_response.candidates = [MagicMock()]
+        mock_response.candidates[0].finish_reason = "STOP"
+        mock_response.candidates[0].content.parts = [mock_part]
+
+        self.client.models.generate_content.return_value = mock_response
+
+        config = MediaConfig(prompt="a cat", model="gemini-3.1-flash-image-preview", count=1)
+        with patch("genmedia.backends.gemini.ThreadPoolExecutor") as mock_pool:
+            results = self.backend.generate(config)
+            mock_pool.assert_not_called()
+        assert len(results) == 1
 
 
 from genmedia.backends.imagen import ImagenBackend
@@ -253,3 +312,77 @@ class TestVeoBackend:
         with pytest.raises(ContentBlockedError) as exc_info:
             self.backend.generate(config)
         assert "SAFETY" in str(exc_info.value)
+
+    def test_generate_with_style_ref(self):
+        mock_video = MagicMock()
+        mock_video.video = MagicMock()
+
+        mock_operation = MagicMock()
+        mock_operation.done = True
+        mock_operation.result.generated_videos = [mock_video]
+
+        self.client.models.generate_videos.return_value = mock_operation
+        self.client.files.download.return_value = b"video-bytes"
+
+        config = MediaConfig(
+            prompt="cinematic sunset", model="veo-3.0-generate-001",
+            style_ref=b"style-image-data", style_ref_mime="image/png",
+        )
+        results = self.backend.generate(config)
+        assert len(results) == 1
+
+        call_kwargs = self.client.models.generate_videos.call_args[1]
+        veo_config = call_kwargs["config"]
+        assert hasattr(veo_config, "reference_images")
+        assert "image" not in call_kwargs  # no input_image when using refs
+
+    def test_connection_error_classified(self):
+        """Raw ConnectionError from SDK should be classified as NonRetryableError."""
+        from genmedia.retry import NonRetryableError
+        self.client.models.generate_videos.side_effect = ConnectionError("Connection refused")
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001")
+        with pytest.raises(NonRetryableError, match="Connection refused"):
+            self.backend.generate(config)
+
+    def test_poll_timeout(self):
+        """Polling should raise TimeoutError if operation never completes."""
+        pending_op = MagicMock()
+        pending_op.done = False
+
+        self.client.models.generate_videos.return_value = pending_op
+        self.client.operations.get.return_value = pending_op
+
+        self.backend.poll_timeout = 0.1  # 100ms timeout
+
+        config = MediaConfig(prompt="a sunset", model="veo-3.0-generate-001")
+        with patch("genmedia.backends.veo.time.sleep"):
+            with pytest.raises(TimeoutError, match="timed out"):
+                self.backend.generate(config)
+
+    def test_poll_timeout_env_override(self):
+        """GENMEDIA_POLL_TIMEOUT env var should override default."""
+        with patch.dict("os.environ", {"GENMEDIA_POLL_TIMEOUT": "30"}):
+            backend = VeoBackend(client=self.client)
+            assert backend.poll_timeout == 30.0
+
+    def test_generate_with_asset_refs(self):
+        mock_video = MagicMock()
+        mock_video.video = MagicMock()
+
+        mock_operation = MagicMock()
+        mock_operation.done = True
+        mock_operation.result.generated_videos = [mock_video]
+
+        self.client.models.generate_videos.return_value = mock_operation
+        self.client.files.download.return_value = b"video-bytes"
+
+        config = MediaConfig(
+            prompt="consistent character", model="veo-3.0-generate-001",
+            asset_refs=[(b"asset-1", "image/png"), (b"asset-2", "image/jpeg")],
+        )
+        results = self.backend.generate(config)
+        assert len(results) == 1
+
+        call_kwargs = self.client.models.generate_videos.call_args[1]
+        veo_config = call_kwargs["config"]
+        assert hasattr(veo_config, "reference_images")

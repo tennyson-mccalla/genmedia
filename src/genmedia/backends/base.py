@@ -22,6 +22,11 @@ class MediaConfig:
     input_image_mime: str | None = None
     last_frame_image: bytes | None = None
     last_frame_mime: str | None = None
+    resolution: str | None = None
+    enhance_prompt: bool = False
+    style_ref: bytes | None = None
+    style_ref_mime: str | None = None
+    asset_refs: list[tuple[bytes, str]] | None = None  # list of (bytes, mime_type)
 
 
 class ContentBlockedError(Exception):

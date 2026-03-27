@@ -74,8 +74,12 @@ git push origin main --tags
 
 DIST_DIR="$REPO_ROOT/dist2"
 rm -rf "$DIST_DIR"
+PYTHON="${REPO_ROOT}/.venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then
+  PYTHON="python3"
+fi
 echo "Building..."
-python3 -m build --outdir "$DIST_DIR" 2>&1 | tail -2
+"$PYTHON" -m build --outdir "$DIST_DIR" 2>&1 | tail -2
 
 # --- Upload to PyPI ---
 

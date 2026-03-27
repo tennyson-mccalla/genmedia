@@ -77,15 +77,33 @@ genmedia video "a cat riding a skateboard downhill at sunset" --duration 8 --pre
 # Image-to-video (animate a still image)
 genmedia video "the scene comes to life" --image keyframe.jpg --pretty
 
-# Frame interpolation (morph between two images)
-genmedia video "smooth transition" --image start.jpg --last-frame end.jpg
+# Style reference (apply visual style from an image)
+genmedia video "a bustling city street" --style-ref painting.jpg
+
+# Asset reference (character/object consistency, up to 3 images)
+genmedia video "the character walks through a forest" --asset-ref character.png
 ```
+
+> **Note:** `--last-frame` (frame interpolation) is available in the CLI but currently only supported by Veo 2 (`veo-2.0-generate-001`), which requires a Google Cloud Vertex AI billing account. It is not supported on Veo 3.x models.
 
 ### List models
 
 ```bash
 genmedia image --list-models
 genmedia video --list-models
+```
+
+### Piping
+
+```bash
+# Pipe prompt from stdin
+echo "a neon cityscape at night" | genmedia image --pretty
+
+# Write binary to stdout
+genmedia image "a logo" --output - > logo.png
+
+# Read image from stdin for video
+cat keyframe.png | genmedia video "animate this" --image - --pretty
 ```
 
 ### Dry run
@@ -149,6 +167,7 @@ Errors go to stderr as JSON with distinct exit codes:
 | `veo-3.0-fast-generate-001` | Faster, lower quality. |
 | `veo-3.1-generate-preview` | Newer preview. |
 | `veo-3.1-fast-generate-preview` | Newer fast preview. |
+| `veo-2.0-generate-001` | Veo 2. Supports `--last-frame`. Requires Vertex AI billing. |
 
 ## For AI agents
 

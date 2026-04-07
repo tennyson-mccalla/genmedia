@@ -7,3 +7,7 @@ dist/
 dist2/
 notes-*.md
 scripts/
+.DS_Store
+.claude/
+docs/
+scratch_audio_test.py

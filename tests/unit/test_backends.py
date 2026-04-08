@@ -432,4 +432,6 @@ def test_gemini_backend_accepts_multiple_input_images():
         count=1,
     )
     req = backend.build_request(cfg)
-    assert req["config"].get("input_image_count") == 2
+    # contents = [prompt_str, Part, Part]
+    assert len(req["contents"]) == 3
+    assert req["contents"][0] == "combine these"

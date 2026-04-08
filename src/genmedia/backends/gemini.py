@@ -17,18 +17,15 @@ class GeminiImageBackend(Backend):
                 for data, mime in config.input_images
             ]
             modalities = ["TEXT", "IMAGE"]
-            input_image_count = len(config.input_images)
         elif config.input_image is not None:
             contents = [
                 config.prompt,
                 types.Part.from_bytes(data=config.input_image, mime_type=config.input_image_mime),
             ]
             modalities = ["TEXT", "IMAGE"]
-            input_image_count = 1
         else:
             contents = config.prompt
             modalities = ["IMAGE"]
-            input_image_count = 0
 
         image_config = {}
         if config.aspect_ratio:
@@ -40,8 +37,6 @@ class GeminiImageBackend(Backend):
         sdk_config = {"response_modalities": modalities}
         if image_config:
             sdk_config["image_config"] = image_config
-        if input_image_count:
-            sdk_config["input_image_count"] = input_image_count
 
         return {"model": config.model, "contents": contents, "config": sdk_config}
 

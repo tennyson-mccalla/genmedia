@@ -79,6 +79,33 @@ def validate_config(
     return errors
 
 
+def validate_image_extras(
+    *,
+    model: str,
+    output_format: str | None,
+    guidance_scale: float | None,
+    person_generation: str | None,
+    compression_quality: int | None,
+) -> list[str]:
+    errors: list[str] = []
+    is_imagen = model.startswith("imagen")
+    if not is_imagen:
+        if guidance_scale is not None:
+            errors.append("--guidance-scale is only supported on Imagen models")
+        if person_generation is not None:
+            errors.append("--person-generation is only supported on Imagen models")
+        if compression_quality is not None:
+            errors.append("--compression-quality is only supported on Imagen models")
+    elif guidance_scale is not None and not (0 <= guidance_scale <= 100):
+        errors.append(f"--guidance-scale must be 0-100, got {guidance_scale}")
+    if compression_quality is not None:
+        if not (1 <= compression_quality <= 100):
+            errors.append(f"--compression-quality must be 1-100, got {compression_quality}")
+        if output_format != "jpg":
+            errors.append("--compression-quality requires --format jpg")
+    return errors
+
+
 VEO_RESOLUTIONS = {"720p", "1080p"}
 VEO_LAST_FRAME_MODELS = {"veo-3.1-generate-preview"}
 

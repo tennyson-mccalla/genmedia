@@ -459,6 +459,61 @@ def test_video_negative_prompt_dry_run(monkeypatch, tmp_path):
     assert "blurry" in result.output
 
 
+def test_video_negative_prompt_real_path(monkeypatch, tmp_path):
+    """Regression: --negative-prompt was set in dry-run config but dropped from
+    the real-path MediaConfig, so live calls silently omitted it. Verify the real
+    SDK call receives it."""
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from click.testing import CliRunner
+    from genmedia.cli.video import video
+    with patch("genmedia.cli.video.genai") as mock_genai:
+        mock_video = MagicMock()
+        mock_video.video = MagicMock()
+        mock_op = MagicMock()
+        mock_op.done = True
+        mock_op.result.generated_videos = [mock_video]
+        mock_genai.Client.return_value.models.generate_videos.return_value = mock_op
+        mock_genai.Client.return_value.files.download.return_value = b"fake"
+
+        runner = CliRunner()
+        result = runner.invoke(video, [
+            "a cube", "--negative-prompt", "blurry, washed out",
+            "--output-dir", str(tmp_path),
+        ])
+        assert result.exit_code == 0, result.output
+        call_kwargs = mock_genai.Client.return_value.models.generate_videos.call_args.kwargs
+        assert call_kwargs["config"].negative_prompt == "blurry, washed out"
+
+
+def test_image_extras_validation_rejects_bad_combos(monkeypatch):
+    """Regression for validate_image_extras: gating + range checks must fire on
+    the real path (dry-run displays errors but does not exit)."""
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from click.testing import CliRunner
+    from genmedia.cli.image import image
+    runner = CliRunner()
+
+    # 1. guidance_scale on a non-Imagen model
+    r = runner.invoke(image, ["a cube", "--model", "gemini-3.1-flash-image-preview", "--guidance-scale", "12"])
+    assert r.exit_code == 2
+    assert "guidance-scale" in r.stderr and "Imagen" in r.stderr
+
+    # 2. compression_quality without --format jpg
+    r = runner.invoke(image, ["a cube", "--model", "imagen-4.0-generate-001", "--compression-quality", "80"])
+    assert r.exit_code == 2
+    assert "compression-quality" in r.stderr and "jpg" in r.stderr
+
+    # 3. compression_quality out of range
+    r = runner.invoke(image, ["a cube", "--model", "imagen-4.0-generate-001", "--format", "jpg", "--compression-quality", "150"])
+    assert r.exit_code == 2
+    assert "1-100" in r.stderr
+
+    # 4. guidance_scale out of range (Imagen path)
+    r = runner.invoke(image, ["a cube", "--model", "imagen-4.0-generate-001", "--guidance-scale", "500"])
+    assert r.exit_code == 2
+    assert "0-100" in r.stderr
+
+
 def test_image_imagen_knobs_dry_run(monkeypatch):
     monkeypatch.setenv("GEMINI_API_KEY", "test")
     from click.testing import CliRunner

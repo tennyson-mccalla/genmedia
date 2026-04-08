@@ -173,10 +173,20 @@ Errors go to stderr as JSON with distinct exit codes:
 
 | Model | Notes |
 |-------|-------|
-| `gemini-3.1-flash-image-preview` | Default. Best quality. |
+| `gemini-3.1-flash-image-preview` | Default. Best quality. Multi-image edit/composition (up to 14). |
 | `gemini-3-pro-image-preview` | Previous generation. |
 | `gemini-2.5-flash-image` | Older, faster. |
-| `imagen-4.0-generate-001` | Imagen. Different API, good for photorealism. |
+| `imagen-4.0-generate-001` | Imagen. Different API, good for photorealism. Only model that supports `--guidance-scale`, `--person-generation`, and `--compression-quality` (jpg only). |
+
+Knob compatibility:
+
+| Flag | Applies to |
+|------|------------|
+| `--guidance-scale` | Imagen models only |
+| `--person-generation` | Imagen models only (`ALLOW_ADULT`, `DONT_ALLOW`; `ALLOW_ALL` is Vertex-only) |
+| `--compression-quality` | Imagen models only, requires `--format jpg` |
+| `--size` | All image models (Imagen + Gemini) — `512`, `1K`, `2K` |
+| `-i` (multi) | `gemini-3.1-flash-image-preview` for `genmedia edit` composition |
 
 ### Video generation
 
@@ -184,8 +194,18 @@ Errors go to stderr as JSON with distinct exit codes:
 |-------|-------|
 | `veo-3.0-generate-001` | Default. Standard quality. |
 | `veo-3.0-fast-generate-001` | Faster, lower quality. |
-| `veo-3.1-generate-preview` | Newer preview. |
-| `veo-3.1-fast-generate-preview` | Newer fast preview. |
+| `veo-3.1-generate-preview` | Newer preview. Only model that supports `--last-frame` (frame interpolation). |
+| `veo-3.1-fast-generate-preview` | Newer fast preview. Does not support `--last-frame`. |
+
+Knob compatibility:
+
+| Flag | Applies to |
+|------|------------|
+| `--negative-prompt` | All Veo models |
+| `--last-frame` | `veo-3.1-generate-preview` only |
+| `--resolution 1080p` | All Veo models, requires `--duration 8` |
+| `--resolution 720p` | All Veo models |
+| `--style-ref`, `--asset-ref` | All Veo models |
 
 ## For AI agents
 

@@ -1,4 +1,3 @@
-import json
 import mimetypes
 import os
 import sys
@@ -39,6 +38,15 @@ def edit(prompt, input_images, model, output, output_dir, count, aspect, size, o
     if len(input_images) > 14:
         _exit_error("validation_error", f"At most 14 input images supported, got {len(input_images)}", exit_code=2, pretty=pretty)
 
+    MAX_IMAGE_BYTES = 20 * 1024 * 1024  # Gemini inline Part limit is ~20MB
+    for path in input_images:
+        try:
+            size_bytes = os.path.getsize(path)
+        except OSError as e:
+            _exit_error("file_error", f"Cannot stat input image {path}: {e}", exit_code=3, pretty=pretty)
+        if size_bytes > MAX_IMAGE_BYTES:
+            _exit_error("validation_error", f"Input image {path} is {size_bytes} bytes (max {MAX_IMAGE_BYTES})", exit_code=2, pretty=pretty)
+
     errors = validate_config(
         subcommand="edit",
         prompt=prompt,
@@ -48,12 +56,13 @@ def edit(prompt, input_images, model, output, output_dir, count, aspect, size, o
         output_format=output_format,
         count=count,
         model=model,
-        input_image=input_images[0],
+        input_image=None,  # Click's exists=True validated all -i paths at parse time
     )
 
     loaded: list[tuple[bytes, str]] = []
     for path in input_images:
-        data = open(path, "rb").read()
+        with open(path, "rb") as f:
+            data = f.read()
         mime = mimetypes.guess_type(path)[0] or "image/png"
         loaded.append((data, mime))
 

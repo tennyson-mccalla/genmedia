@@ -207,6 +207,7 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         style_ref=style_ref_bytes,
         style_ref_mime=style_ref_mime,
         asset_refs=asset_refs_loaded,
+        negative_prompt=negative_prompt,
     )
 
     retry = RetryWrapper()

@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import time
@@ -18,7 +17,7 @@ from genmedia.output import (
     write_media_files,
 )
 from genmedia.retry import NonRetryableError, RetryableError, RetryWrapper
-from genmedia.validation import validate_config
+from genmedia.validation import validate_config, validate_image_extras
 
 
 @click.command()
@@ -82,6 +81,13 @@ def image(prompt, model, output, output_dir, count, aspect, size, output_format,
             model=model,
             input_image=None,
         )
+        errors += validate_image_extras(
+            model=model,
+            output_format=output_format,
+            guidance_scale=guidance_scale,
+            person_generation=person_generation,
+            compression_quality=compression_quality,
+        )
 
         req = backend.build_request(config)
         backend_name = "ImagenBackend" if is_imagen else "GeminiImageBackend"
@@ -106,6 +112,13 @@ def image(prompt, model, output, output_dir, count, aspect, size, output_format,
         count=count,
         model=model,
         input_image=None,
+    )
+    errors += validate_image_extras(
+        model=model,
+        output_format=output_format,
+        guidance_scale=guidance_scale,
+        person_generation=person_generation,
+        compression_quality=compression_quality,
     )
     if errors:
         _exit_error("validation_error", "; ".join(errors), exit_code=2, pretty=pretty)

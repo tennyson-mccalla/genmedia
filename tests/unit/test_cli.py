@@ -341,7 +341,7 @@ class TestVideoV020Features:
         assert parsed["config"]["enhance_prompt"] is True
 
     def test_resolution_case_insensitive(self, runner, mock_env):
-        result = runner.invoke(cli, ["video", "test", "--resolution", "4k", "--dry-run"])
+        result = runner.invoke(cli, ["video", "test", "--resolution", "1080p", "--duration", "8", "--dry-run"])
         assert result.exit_code == 0
 
     def test_verbose_flag_removed(self, runner, mock_env):

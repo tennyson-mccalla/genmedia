@@ -79,3 +79,30 @@ def validate_config(
             errors.append(f"Input image not found: {input_image}")
 
     return errors
+
+
+VEO_RESOLUTIONS = {"720p", "1080p"}
+VEO_LAST_FRAME_MODELS = {"veo-3.1-generate-preview"}
+
+
+def validate_video_extras(
+    *,
+    resolution: str | None,
+    duration_seconds: int | None,
+    model: str,
+    last_frame: bool,
+) -> list[str]:
+    errors: list[str] = []
+    if resolution is not None and resolution not in VEO_RESOLUTIONS:
+        errors.append(
+            f"Invalid resolution '{resolution}'. Supported on Gemini API: "
+            f"{', '.join(sorted(VEO_RESOLUTIONS))}. (4K is Vertex-only and was removed in v0.3.)"
+        )
+    if resolution == "1080p" and duration_seconds is not None and duration_seconds != 8:
+        errors.append("Resolution 1080p requires --duration 8")
+    if last_frame and model not in VEO_LAST_FRAME_MODELS:
+        errors.append(
+            f"--last-frame is only supported on {', '.join(sorted(VEO_LAST_FRAME_MODELS))}. "
+            f"Got '{model}'."
+        )
+    return errors

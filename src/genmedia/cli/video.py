@@ -17,7 +17,7 @@ from genmedia.output import (
     write_media_files,
 )
 from genmedia.retry import NonRetryableError, RetryableError, RetryWrapper
-from genmedia.validation import validate_config
+from genmedia.validation import validate_config, validate_video_extras
 
 
 @click.command()
@@ -30,7 +30,7 @@ from genmedia.validation import validate_config
 @click.option("--duration", default=8, type=int, help="Duration: 4, 6, or 8 seconds")
 @click.option("--image", "-i", "image_path", default=None, help="First frame image for image-to-video (use - for stdin)")
 @click.option("--last-frame", default=None, type=click.Path(exists=True), help="Last frame image for frame interpolation (Veo 2 / Vertex AI only)")
-@click.option("--resolution", "-r", default=None, type=click.Choice(["720p", "1080p", "4K"], case_sensitive=False), help="Video resolution: 720p, 1080p, 4K")
+@click.option("--resolution", "-r", default=None, type=click.Choice(["720p", "1080p"], case_sensitive=False), help="Video resolution: 720p or 1080p (1080p requires --duration 8)")
 @click.option("--enhance-prompt", is_flag=True, help="Let Veo rewrite your prompt for more cinematic results")
 @click.option("--style-ref", default=None, type=click.Path(exists=True), help="Style reference image for visual style conditioning")
 @click.option("--asset-ref", multiple=True, type=click.Path(exists=True), help="Asset reference image (up to 3, for character/object consistency)")
@@ -169,6 +169,12 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         count=count,
         model=model,
         input_image=None,
+    )
+    errors += validate_video_extras(
+        resolution=resolution,
+        duration_seconds=duration,
+        model=model,
+        last_frame=bool(last_frame),
     )
     if errors:
         _exit_error("validation_error", "; ".join(errors), exit_code=2, pretty=pretty)

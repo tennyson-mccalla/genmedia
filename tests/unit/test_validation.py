@@ -156,3 +156,27 @@ def test_valid_config_no_errors():
             count=1, model="gemini-3.1-flash-image-preview", input_image=None,
         )
     assert errors == []
+
+
+def test_resolution_1080p_requires_8s():
+    errors = validate_config(
+        subcommand="video", prompt="x", aspect_ratio=None,
+        image_size=None, duration_seconds=4, output_format=None,
+        count=1, model="veo-3.1-fast-generate-preview", input_image=None,
+    )
+    # We thread resolution through validate_config in a later step; for now
+    # this test will be wired by Task 1 step 3.
+    # Assertion placeholder — see step 3.
+    assert errors == []  # baseline check
+
+def test_resolution_1080p_with_8s_ok(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from genmedia.validation import validate_video_extras
+    errors = validate_video_extras(resolution="1080p", duration_seconds=8, model="veo-3.1-generate-preview", last_frame=False)
+    assert errors == []
+
+def test_resolution_1080p_with_4s_errors(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from genmedia.validation import validate_video_extras
+    errors = validate_video_extras(resolution="1080p", duration_seconds=4, model="veo-3.1-generate-preview", last_frame=False)
+    assert any("1080p" in e and "8" in e for e in errors)

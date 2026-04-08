@@ -422,3 +422,14 @@ def test_imagen_backend_passes_imagen_knobs():
     assert req["config"]["guidance_scale"] == 12.0
     assert req["config"]["person_generation"] == "DONT_ALLOW"
     assert req["config"]["output_compression_quality"] == 80
+
+
+def test_gemini_backend_accepts_multiple_input_images():
+    backend = GeminiImageBackend(client=None)
+    cfg = MediaConfig(
+        prompt="combine these", model="gemini-3.1-flash-image-preview",
+        input_images=[(b"\x89PNG\r\n", "image/png"), (b"\x89PNG\r\n", "image/png")],
+        count=1,
+    )
+    req = backend.build_request(cfg)
+    assert req["config"].get("input_image_count") == 2

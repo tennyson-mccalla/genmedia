@@ -98,7 +98,7 @@ class TestEditCommand:
         img_path = tmp_path / "input.png"
         img_path.write_bytes(b"fake-png-data")
 
-        result = runner.invoke(cli, ["edit", str(img_path), "remove background", "--dry-run"])
+        result = runner.invoke(cli, ["edit", "remove background", "-i", str(img_path), "--dry-run"])
         assert result.exit_code == 0
         parsed = json.loads(result.output)
         assert parsed["status"] == "dry_run"
@@ -106,13 +106,13 @@ class TestEditCommand:
         assert parsed["config"]["response_modalities"] == ["TEXT", "IMAGE"]
 
     def test_edit_missing_input_file(self, runner, mock_env):
-        result = runner.invoke(cli, ["edit", "/nonexistent.png", "remove bg"])
+        result = runner.invoke(cli, ["edit", "remove bg", "-i", "/nonexistent.png"])
         assert result.exit_code == 2
 
     def test_edit_missing_prompt(self, runner, mock_env, tmp_path):
         img_path = tmp_path / "input.png"
         img_path.write_bytes(b"fake-png")
-        result = runner.invoke(cli, ["edit", str(img_path)])
+        result = runner.invoke(cli, ["edit", "-i", str(img_path)])
         assert result.exit_code != 0
 
     @patch("genmedia.cli.edit.genai")
@@ -135,7 +135,7 @@ class TestEditCommand:
         mock_genai.Client.return_value.models.generate_content.return_value = mock_response
 
         result = runner.invoke(cli, [
-            "edit", str(img_path), "remove background",
+            "edit", "remove background", "-i", str(img_path),
             "--output-dir", str(tmp_path),
         ])
         assert result.exit_code == 0
@@ -474,3 +474,16 @@ def test_image_imagen_knobs_dry_run(monkeypatch):
     assert result.exit_code == 0, result.output
     assert "guidance_scale" in result.output
     assert "DONT_ALLOW" in result.output
+
+
+def test_edit_multi_image_dry_run(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from click.testing import CliRunner
+    from genmedia.cli.edit import edit
+    img_a = tmp_path / "a.png"; img_a.write_bytes(b"\x89PNG\r\n")
+    img_b = tmp_path / "b.png"; img_b.write_bytes(b"\x89PNG\r\n")
+    runner = CliRunner()
+    result = runner.invoke(edit, [
+        "merge them", "-i", str(img_a), "-i", str(img_b), "--dry-run",
+    ])
+    assert result.exit_code == 0, result.output

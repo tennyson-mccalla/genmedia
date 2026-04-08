@@ -21,8 +21,8 @@ from genmedia.validation import validate_config
 
 
 @click.command()
-@click.argument("input_image")
 @click.argument("prompt")
+@click.option("-i", "--image", "input_images", multiple=True, required=True, type=click.Path(exists=True), help="Input image (repeatable, up to 14)")
 @click.option("--model", "-m", default=None, help="Model ID")
 @click.option("--output", "-o", default=None, help="Output file path (use - for stdout)")
 @click.option("--output-dir", "-d", default=None, help="Output directory")
@@ -32,9 +32,12 @@ from genmedia.validation import validate_config
 @click.option("--format", "-f", "output_format", default="png", help="Output format: png, jpg, webp")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
-def edit(input_image, prompt, model, output, output_dir, count, aspect, size, output_format, pretty, dry_run):
-    """Edit/inpaint an existing image."""
+def edit(prompt, input_images, model, output, output_dir, count, aspect, size, output_format, pretty, dry_run):
+    """Edit/compose images. Pass one or more input images via -i/--image."""
     model = model or get_default_model("edit")
+
+    if len(input_images) > 14:
+        _exit_error("validation_error", f"At most 14 input images supported, got {len(input_images)}", exit_code=2, pretty=pretty)
 
     errors = validate_config(
         subcommand="edit",
@@ -45,23 +48,16 @@ def edit(input_image, prompt, model, output, output_dir, count, aspect, size, ou
         output_format=output_format,
         count=count,
         model=model,
-        input_image=input_image,
+        input_image=input_images[0],
     )
 
-    if input_image == "-":
-        input_image_bytes_stdin = sys.stdin.buffer.read()
-    else:
-        input_image_bytes_stdin = None
+    loaded: list[tuple[bytes, str]] = []
+    for path in input_images:
+        data = open(path, "rb").read()
+        mime = mimetypes.guess_type(path)[0] or "image/png"
+        loaded.append((data, mime))
 
     if dry_run:
-        image_bytes = b""
-        mime = "image/png"
-        if input_image == "-":
-            image_bytes = input_image_bytes_stdin
-        elif os.path.isfile(input_image):
-            image_bytes = open(input_image, "rb").read()
-            mime = mimetypes.guess_type(input_image)[0] or "image/png"
-
         backend = GeminiImageBackend(client=None)
         config = MediaConfig(
             prompt=prompt,
@@ -70,8 +66,7 @@ def edit(input_image, prompt, model, output, output_dir, count, aspect, size, ou
             image_size=size,
             output_format=output_format,
             count=count,
-            input_image=image_bytes,
-            input_image_mime=mime,
+            input_images=loaded,
         )
         req = backend.build_request(config)
 
@@ -87,13 +82,6 @@ def edit(input_image, prompt, model, output, output_dir, count, aspect, size, ou
     if errors:
         _exit_error("validation_error", "; ".join(errors), exit_code=2, pretty=pretty)
 
-    if input_image == "-":
-        image_bytes = input_image_bytes_stdin
-        mime = "image/png"
-    else:
-        image_bytes = open(input_image, "rb").read()
-        mime = mimetypes.guess_type(input_image)[0] or "image/png"
-
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     backend = GeminiImageBackend(client=client)
 
@@ -104,8 +92,7 @@ def edit(input_image, prompt, model, output, output_dir, count, aspect, size, ou
         image_size=size,
         output_format=output_format,
         count=count,
-        input_image=image_bytes,
-        input_image_mime=mime,
+        input_images=loaded,
     )
 
     retry = RetryWrapper()
@@ -136,7 +123,7 @@ def edit(input_image, prompt, model, output, output_dir, count, aspect, size, ou
     except OSError as e:
         _exit_error("file_error", str(e), exit_code=3, pretty=pretty)
 
-    request_info = {"prompt": prompt, "input_image": input_image}
+    request_info = {"prompt": prompt, "input_images": list(input_images)}
     if aspect:
         request_info["aspect_ratio"] = aspect
     if size:

@@ -31,6 +31,7 @@ class MediaConfig:
     guidance_scale: float | None = None
     person_generation: str | None = None
     compression_quality: int | None = None
+    input_images: list[tuple[bytes, str]] | None = None  # multi-image input for edit
 
 
 class ContentBlockedError(Exception):

@@ -10,7 +10,6 @@ VIDEO_MODELS = [
     {"id": "veo-3.0-fast-generate-001", "default": False, "notes": "Faster, lower quality"},
     {"id": "veo-3.1-generate-preview", "default": False, "notes": "Newer preview"},
     {"id": "veo-3.1-fast-generate-preview", "default": False, "notes": "Newer fast preview"},
-    {"id": "veo-2.0-generate-001", "default": False, "notes": "Veo 2 — supports --last-frame, requires Vertex AI billing"},
 ]
 
 _ALL_MODELS = {m["id"] for m in IMAGE_MODELS + VIDEO_MODELS}

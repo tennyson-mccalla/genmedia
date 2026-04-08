@@ -29,7 +29,7 @@ from genmedia.validation import validate_config, validate_video_extras
 @click.option("--aspect", "-a", default=None, help="Aspect ratio: 16:9 or 9:16")
 @click.option("--duration", default=8, type=int, help="Duration: 4, 6, or 8 seconds")
 @click.option("--image", "-i", "image_path", default=None, help="First frame image for image-to-video (use - for stdin)")
-@click.option("--last-frame", default=None, type=click.Path(exists=True), help="Last frame image for frame interpolation (Veo 2 / Vertex AI only)")
+@click.option("--last-frame", default=None, type=click.Path(exists=True), help="Last frame image for frame interpolation (requires veo-3.1-generate-preview)")
 @click.option("--resolution", "-r", default=None, type=click.Choice(["720p", "1080p"], case_sensitive=False), help="Video resolution: 720p or 1080p (1080p requires --duration 8)")
 @click.option("--enhance-prompt", is_flag=True, help="Let Veo rewrite your prompt for more cinematic results")
 @click.option("--style-ref", default=None, type=click.Path(exists=True), help="Style reference image for visual style conditioning")

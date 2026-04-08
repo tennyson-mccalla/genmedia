@@ -180,3 +180,30 @@ def test_resolution_1080p_with_4s_errors(monkeypatch):
     from genmedia.validation import validate_video_extras
     errors = validate_video_extras(resolution="1080p", duration_seconds=4, model="veo-3.1-generate-preview", last_frame=False)
     assert any("1080p" in e and "8" in e for e in errors)
+
+
+def test_last_frame_rejected_on_veo30():
+    from genmedia.validation import validate_video_extras
+    errors = validate_video_extras(
+        resolution=None, duration_seconds=8,
+        model="veo-3.0-generate-001", last_frame=True,
+    )
+    assert any("last-frame" in e for e in errors)
+
+
+def test_last_frame_rejected_on_veo31_fast():
+    from genmedia.validation import validate_video_extras
+    errors = validate_video_extras(
+        resolution=None, duration_seconds=8,
+        model="veo-3.1-fast-generate-preview", last_frame=True,
+    )
+    assert any("last-frame" in e for e in errors)
+
+
+def test_last_frame_allowed_on_veo31_full():
+    from genmedia.validation import validate_video_extras
+    errors = validate_video_extras(
+        resolution=None, duration_seconds=8,
+        model="veo-3.1-generate-preview", last_frame=True,
+    )
+    assert errors == []

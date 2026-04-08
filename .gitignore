@@ -11,3 +11,5 @@ scripts/
 .claude/
 docs/
 scratch_audio_test.py
+scratch/
+uv.lock

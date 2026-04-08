@@ -194,8 +194,8 @@ Knob compatibility:
 |-------|-------|
 | `veo-3.0-generate-001` | Default. Standard quality. |
 | `veo-3.0-fast-generate-001` | Faster, lower quality. |
-| `veo-3.1-generate-preview` | Newer preview. The only model genmedia allows for `--last-frame` (frame interpolation). |
-| `veo-3.1-fast-generate-preview` | Newer fast preview. `--last-frame` is currently disabled here pending API confirmation; file an issue if you need it. |
+| `veo-3.1-generate-preview` | Newer preview. Only model that supports `--last-frame` (frame interpolation). |
+| `veo-3.1-fast-generate-preview` | Newer fast preview. Does not support `--last-frame` (API rejects with 400 — verified 2026-04-07). |
 
 Knob compatibility:
 

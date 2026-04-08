@@ -86,16 +86,6 @@ def test_invalid_image_size():
     assert any("size" in e.lower() for e in errors)
 
 
-def test_image_size_not_allowed_for_imagen():
-    with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
-        errors = validate_config(
-            subcommand="image", prompt="test", aspect_ratio=None,
-            image_size="4K", duration_seconds=None, output_format="png",
-            count=1, model="imagen-4.0-generate-001", input_image=None,
-        )
-    assert any("imagen" in e.lower() or "size" in e.lower() for e in errors)
-
-
 def test_valid_duration():
     with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key"}):
         for d in [4, 6, 8]:
@@ -207,3 +197,13 @@ def test_last_frame_allowed_on_veo31_full():
         model="veo-3.1-generate-preview", last_frame=True,
     )
     assert errors == []
+
+
+def test_imagen_image_size_2k_allowed(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    errors = validate_config(
+        subcommand="image", prompt="x", aspect_ratio=None,
+        image_size="2K", duration_seconds=None, output_format="png",
+        count=1, model="imagen-4.0-generate-001", input_image=None,
+    )
+    assert errors == [], errors

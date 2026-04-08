@@ -53,8 +53,6 @@ def validate_config(
                 f"Invalid image size '{image_size}'. "
                 f"Supported: {', '.join(sorted(VALID_IMAGE_SIZES))}"
             )
-        if model.startswith("imagen"):
-            errors.append("image_size is not supported with Imagen models")
 
     if duration_seconds is not None and duration_seconds not in VALID_DURATIONS:
         errors.append(

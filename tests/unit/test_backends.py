@@ -386,3 +386,12 @@ class TestVeoBackend:
         call_kwargs = self.client.models.generate_videos.call_args[1]
         veo_config = call_kwargs["config"]
         assert hasattr(veo_config, "reference_images")
+
+
+def test_imagen_backend_passes_image_size():
+    from genmedia.backends.imagen import ImagenBackend
+    from genmedia.backends.base import MediaConfig
+    backend = ImagenBackend(client=None)
+    cfg = MediaConfig(prompt="x", model="imagen-4.0-generate-001", image_size="2K", count=1)
+    req = backend.build_request(cfg)
+    assert req["config"]["image_size"] == "2K"

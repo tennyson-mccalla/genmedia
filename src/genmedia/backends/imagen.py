@@ -17,6 +17,12 @@ class ImagenBackend(Backend):
         if config.output_format:
             mime_map = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}
             imagen_config["output_mime_type"] = mime_map.get(config.output_format, "image/png")
+        if config.guidance_scale is not None:
+            imagen_config["guidance_scale"] = config.guidance_scale
+        if config.person_generation:
+            imagen_config["person_generation"] = config.person_generation
+        if config.compression_quality is not None and config.output_format == "jpg":
+            imagen_config["output_compression_quality"] = config.compression_quality
         return {"model": config.model, "prompt": config.prompt, "config": imagen_config}
 
     def validate(self, config: MediaConfig) -> list[str]:

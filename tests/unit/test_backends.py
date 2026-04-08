@@ -407,3 +407,18 @@ def test_veo_backend_passes_negative_prompt():
     )
     req = backend.build_request(cfg)
     assert req["config"]["negative_prompt"] == "blurry, low quality"
+
+
+def test_imagen_backend_passes_imagen_knobs():
+    from genmedia.backends.imagen import ImagenBackend
+    from genmedia.backends.base import MediaConfig
+    backend = ImagenBackend(client=None)
+    cfg = MediaConfig(
+        prompt="x", model="imagen-4.0-generate-001", count=1,
+        guidance_scale=12.0, person_generation="DONT_ALLOW",
+        output_format="jpg", compression_quality=80,
+    )
+    req = backend.build_request(cfg)
+    assert req["config"]["guidance_scale"] == 12.0
+    assert req["config"]["person_generation"] == "DONT_ALLOW"
+    assert req["config"]["output_compression_quality"] == 80

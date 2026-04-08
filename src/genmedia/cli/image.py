@@ -30,11 +30,14 @@ from genmedia.validation import validate_config
 @click.option("--aspect", "-a", default=None, help="Aspect ratio (e.g. 16:9)")
 @click.option("--size", "-s", default=None, help="Image size: 512, 1K, 2K, 4K")
 @click.option("--format", "-f", "output_format", default="png", help="Output format: png, jpg, webp")
+@click.option("--guidance-scale", default=None, type=float, help="Imagen only: prompt adherence (typical 5-20)")
+@click.option("--person-generation", default=None, type=click.Choice(["ALLOW_ADULT", "DONT_ALLOW"]), help="Imagen only: person generation policy (ALLOW_ALL is Vertex-only)")
+@click.option("--compression-quality", default=None, type=int, help="Imagen only, with --format jpg: 1-100")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
 @click.option("--list-models", is_flag=True, help="List available models")
 @click.option("--json", "json_flag", is_flag=True, hidden=True, help="JSON output (default, no-op)")
-def image(prompt, model, output, output_dir, count, aspect, size, output_format, pretty, dry_run, list_models, json_flag):
+def image(prompt, model, output, output_dir, count, aspect, size, output_format, guidance_scale, person_generation, compression_quality, pretty, dry_run, list_models, json_flag):
     """Generate images using Gemini or Imagen models."""
     if list_models:
         if pretty:
@@ -63,6 +66,9 @@ def image(prompt, model, output, output_dir, count, aspect, size, output_format,
             image_size=size,
             output_format=output_format,
             count=count,
+            guidance_scale=guidance_scale,
+            person_generation=person_generation,
+            compression_quality=compression_quality,
         )
 
         errors = validate_config(
@@ -115,6 +121,9 @@ def image(prompt, model, output, output_dir, count, aspect, size, output_format,
         image_size=size,
         output_format=output_format,
         count=count,
+        guidance_scale=guidance_scale,
+        person_generation=person_generation,
+        compression_quality=compression_quality,
     )
 
     retry = RetryWrapper()

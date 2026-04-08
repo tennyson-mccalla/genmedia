@@ -457,3 +457,20 @@ def test_video_negative_prompt_dry_run(monkeypatch, tmp_path):
     assert result.exit_code == 0, result.output
     assert "negative_prompt" in result.output
     assert "blurry" in result.output
+
+
+def test_image_imagen_knobs_dry_run(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from click.testing import CliRunner
+    from genmedia.cli.image import image
+    runner = CliRunner()
+    result = runner.invoke(image, [
+        "a cube",
+        "--model", "imagen-4.0-generate-001",
+        "--guidance-scale", "12",
+        "--person-generation", "DONT_ALLOW",
+        "--dry-run",
+    ])
+    assert result.exit_code == 0, result.output
+    assert "guidance_scale" in result.output
+    assert "DONT_ALLOW" in result.output

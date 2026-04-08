@@ -28,6 +28,9 @@ class MediaConfig:
     style_ref_mime: str | None = None
     asset_refs: list[tuple[bytes, str]] | None = None  # list of (bytes, mime_type)
     negative_prompt: str | None = None
+    guidance_scale: float | None = None
+    person_generation: str | None = None
+    compression_quality: int | None = None
 
 
 class ContentBlockedError(Exception):

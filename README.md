@@ -2,6 +2,20 @@
 
 Multimodal media generation CLI for Google GenAI. Images, video, and image editing from the terminal. Bring your own API key.
 
+## Breaking changes in 0.3.0
+
+- `genmedia edit` now takes the prompt as the only positional argument and one or more `-i/--image` flags: `genmedia edit "merge them" -i a.png -i b.png` (up to 14 images). The old `genmedia edit input.png "prompt"` form and the `-` stdin path are gone.
+- `--resolution 4K` removed. The public Gemini API rejects 4K/2160p on every Veo model. Only `720p` and `1080p` are accepted, and `1080p` requires `--duration 8`.
+- `--last-frame` is now gated to `veo-3.1-generate-preview` only (the only model that actually supports it).
+- `veo-2.0-generate-001` removed from the model list (Vertex-only; genmedia has no Vertex backend).
+
+## New in 0.3.0
+
+- `genmedia video --negative-prompt "blurry, low quality"` — things to avoid.
+- `genmedia image` Imagen knobs: `--guidance-scale`, `--person-generation` (`ALLOW_ADULT`/`DONT_ALLOW`), `--compression-quality` (jpg only).
+- `genmedia image --size 1K`/`--size 2K` now works on Imagen models (previously incorrectly rejected).
+- `genmedia edit` accepts up to 14 input images for composition.
+
 ## Examples
 
 | Generate | Edit | Generate |
@@ -50,7 +64,7 @@ genmedia image "a cat on a skateboard" --pretty
 # Full control
 genmedia image "abstract gradient, soft pastels" \
   --model gemini-3.1-flash-image-preview \
-  --size 4K \
+  --size 2K \
   --aspect 16:9 \
   --output backgrounds/pastel.png
 
@@ -64,8 +78,11 @@ genmedia image "photorealistic mountain lake" --model imagen-4.0-generate-001
 ### Edit images
 
 ```bash
-genmedia edit input.png "remove the background" --pretty
-genmedia edit photo.jpg "make the sky more dramatic" -o edited.jpg
+genmedia edit "remove the background" -i input.png --pretty
+genmedia edit "make the sky more dramatic" -i photo.jpg -o edited.jpg
+
+# Compose multiple images (up to 14)
+genmedia edit "place the character in the forest" -i character.png -i forest.jpg
 ```
 
 ### Generate video
@@ -84,7 +101,7 @@ genmedia video "a bustling city street" --style-ref painting.jpg
 genmedia video "the character walks through a forest" --asset-ref character.png
 ```
 
-> **Note:** `--last-frame` (frame interpolation) is available in the CLI but currently only supported by Veo 2 (`veo-2.0-generate-001`), which requires a Google Cloud Vertex AI billing account. It is not supported on Veo 3.x models.
+> **Note:** `--last-frame` (frame interpolation) is only supported by `veo-3.1-generate-preview`. `--resolution 1080p` requires `--duration 8`. Use `--negative-prompt "blurry, low quality"` to steer Veo away from artifacts.
 
 ### List models
 
@@ -104,6 +121,8 @@ genmedia image "a logo" --output - > logo.png
 
 # Read image from stdin for video
 cat keyframe.png | genmedia video "animate this" --image - --pretty
+
+# (Note: `genmedia edit` no longer accepts stdin — pass files with `-i`.)
 ```
 
 ### Dry run
@@ -167,7 +186,6 @@ Errors go to stderr as JSON with distinct exit codes:
 | `veo-3.0-fast-generate-001` | Faster, lower quality. |
 | `veo-3.1-generate-preview` | Newer preview. |
 | `veo-3.1-fast-generate-preview` | Newer fast preview. |
-| `veo-2.0-generate-001` | Veo 2. Supports `--last-frame`. Requires Vertex AI billing. |
 
 ## For AI agents
 

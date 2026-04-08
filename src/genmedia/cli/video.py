@@ -136,6 +136,12 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             model=model,
             input_image=None,
         )
+        errors += validate_video_extras(
+            resolution=resolution,
+            duration_seconds=duration,
+            model=model,
+            last_frame=bool(last_frame),
+        )
 
         req = backend.build_request(config)
         dry_run_config = dict(req["config"])

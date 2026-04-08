@@ -27,6 +27,7 @@ class MediaConfig:
     style_ref: bytes | None = None
     style_ref_mime: str | None = None
     asset_refs: list[tuple[bytes, str]] | None = None  # list of (bytes, mime_type)
+    negative_prompt: str | None = None
 
 
 class ContentBlockedError(Exception):

@@ -446,3 +446,14 @@ class TestVideoTimeout:
         err = json.loads(result.stderr)
         assert err["error"] == "timeout"
         assert "timed out" in err["message"]
+
+
+def test_video_negative_prompt_dry_run(monkeypatch, tmp_path):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    from click.testing import CliRunner
+    from genmedia.cli.video import video
+    runner = CliRunner()
+    result = runner.invoke(video, ["a cube", "--negative-prompt", "blurry", "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "negative_prompt" in result.output
+    assert "blurry" in result.output

@@ -395,3 +395,15 @@ def test_imagen_backend_passes_image_size():
     cfg = MediaConfig(prompt="x", model="imagen-4.0-generate-001", image_size="2K", count=1)
     req = backend.build_request(cfg)
     assert req["config"]["image_size"] == "2K"
+
+
+def test_veo_backend_passes_negative_prompt():
+    from genmedia.backends.veo import VeoBackend
+    from genmedia.backends.base import MediaConfig
+    backend = VeoBackend(client=None)
+    cfg = MediaConfig(
+        prompt="cube", model="veo-3.0-fast-generate-001",
+        duration_seconds=4, count=1, negative_prompt="blurry, low quality",
+    )
+    req = backend.build_request(cfg)
+    assert req["config"]["negative_prompt"] == "blurry, low quality"

@@ -32,12 +32,13 @@ from genmedia.validation import validate_config, validate_video_extras
 @click.option("--last-frame", default=None, type=click.Path(exists=True), help="Last frame image for frame interpolation (requires veo-3.1-generate-preview)")
 @click.option("--resolution", "-r", default=None, type=click.Choice(["720p", "1080p"], case_sensitive=False), help="Video resolution: 720p or 1080p (1080p requires --duration 8)")
 @click.option("--enhance-prompt", is_flag=True, help="Let Veo rewrite your prompt for more cinematic results")
+@click.option("--negative-prompt", default=None, help="Things to avoid in the video (e.g. 'blurry, low quality')")
 @click.option("--style-ref", default=None, type=click.Path(exists=True), help="Style reference image for visual style conditioning")
 @click.option("--asset-ref", multiple=True, type=click.Path(exists=True), help="Asset reference image (up to 3, for character/object consistency)")
 @click.option("--pretty", is_flag=True, help="Human-friendly output")
 @click.option("--dry-run", is_flag=True, help="Show request without calling API")
 @click.option("--list-models", is_flag=True, help="List available video models")
-def video(prompt, model, output, output_dir, count, aspect, duration, image_path, last_frame, resolution, enhance_prompt, style_ref, asset_ref, pretty, dry_run, list_models):
+def video(prompt, model, output, output_dir, count, aspect, duration, image_path, last_frame, resolution, enhance_prompt, negative_prompt, style_ref, asset_ref, pretty, dry_run, list_models):
     """Generate video using Veo models."""
     if list_models:
         if pretty:
@@ -121,6 +122,7 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             style_ref=style_ref_bytes,
             style_ref_mime=style_ref_mime,
             asset_refs=asset_refs_loaded,
+            negative_prompt=negative_prompt,
         )
 
         errors = validate_config(
@@ -145,6 +147,8 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
             dry_run_config["resolution"] = resolution
         if enhance_prompt:
             dry_run_config["enhance_prompt"] = enhance_prompt
+        if negative_prompt:
+            dry_run_config["negative_prompt"] = negative_prompt
         if style_ref:
             dry_run_config["style_ref"] = style_ref
         if asset_ref:
@@ -246,6 +250,8 @@ def video(prompt, model, output, output_dir, count, aspect, duration, image_path
         request_info["resolution"] = resolution
     if enhance_prompt:
         request_info["enhance_prompt"] = enhance_prompt
+    if negative_prompt:
+        request_info["negative_prompt"] = negative_prompt
     if style_ref:
         request_info["style_ref"] = style_ref
     if asset_ref:

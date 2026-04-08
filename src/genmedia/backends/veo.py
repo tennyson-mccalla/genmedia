@@ -27,6 +27,8 @@ class VeoBackend(Backend):
             veo_config["resolution"] = config.resolution
         if config.enhance_prompt:
             veo_config["enhance_prompt"] = True
+        if config.negative_prompt:
+            veo_config["negative_prompt"] = config.negative_prompt
         return {"model": config.model, "prompt": config.prompt, "config": veo_config}
 
     def validate(self, config: MediaConfig) -> list[str]:
